@@ -42,6 +42,13 @@ DEFAULT_SYSTEM_INSTRUCTION = (
     "Include style, lighting, mood, and camera/composition details. "
     "Return ONLY the final prompt in English."
 )
+DEFAULT_SUMMARY_INSTRUCTION = (
+    "You are a Korean-to-English creative synthesis assistant. "
+    "Read the provided Korean saju text and distill it into one or two concise sentences that describe the key imagery, "
+    "symbols, emotions, and seasonal elements that could guide an artist. "
+    "Avoid fortune-telling language; focus on concrete visual motifs and atmospheric cues. "
+    "Output the sentences in Korean."
+)
 
 # ----------------------------
 # 유틸
@@ -54,11 +61,52 @@ def get_gemini_client():
     except Exception:
         return None
 
+
+def summarize_for_visuals(
+    source_text: str,
+    provider: str = "gemini",
+    gemini_client: Optional[genai.Client] = None,
+    system_instruction: str = DEFAULT_SUMMARY_INSTRUCTION,
+) -> str:
+    """
+    사주 텍스트를 그림을 위한 1~2개의 핵심 문장으로 요약.
+    """
+    user_msg = f"""
+[SAJU TEXT / Korean]
+{source_text}
+
+[REQUEST]
+- Summarize into one or two sentences highlighting visual motifs, elements, and atmosphere for illustration.
+- Keep it concrete and metaphorical, avoid fortune-telling claims.
+"""
+    if provider == "openai":
+        if not openai or not OPENAI_API_KEY:
+            raise ValueError("OpenAI 지원이 활성화되지 않았습니다.")
+        openai.api_key = OPENAI_API_KEY
+        completion = openai.chat.completions.create(
+            model=OPENAI_TEXT_MODEL,
+            messages=[
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": user_msg},
+            ]
+        )
+        return (completion.choices[0].message.content or "").strip()
+
+    if not gemini_client:
+        raise ValueError("Gemini 클라이언트가 초기화되지 않았습니다.")
+
+    resp = gemini_client.models.generate_content(
+        model=TEXT_MODEL,
+        contents=[system_instruction, user_msg]
+    )
+    return (resp.text or "").strip()
+
 def write_prompt_from_saju(
     source_text: str,
     system_instruction: str = DEFAULT_SYSTEM_INSTRUCTION,
     provider: str = "gemini",
     gemini_client: Optional[genai.Client] = None,
+    core_scene: Optional[str] = None,
 ) -> str:
     """
     사주 텍스트(명식/풀이) -> 이미지용 프롬프트 1개 생성
@@ -71,6 +119,11 @@ def write_prompt_from_saju(
 - Compose one scene that visually symbolizes the above text
 - Include subject, background, props, color palette, texture, lighting, mood, and art style
 - Prefer 16:9 composition; high fidelity wording (but avoid exaggerated numeric buzzwords)
+"""
+    if core_scene:
+        user_msg += f"""
+[CORE SCENE SUMMARY / Korean]
+{core_scene}
 """
     if provider == "openai":
         if not openai or not OPENAI_API_KEY:
@@ -171,6 +224,9 @@ if not gemini_client and not openai_available:
     st.error("사용 가능한 모델이 없습니다. GEMINI_API_KEY 또는 OPENAI_API_KEY를 설정해주세요.")
     st.stop()
 
+if "core_scene_summary" not in st.session_state:
+    st.session_state.core_scene_summary = ""
+
 if not GEMINI_API_KEY:
     st.info("GEMINI_API_KEY가 설정되지 않아 OpenAI 옵션만 사용할 수 있습니다.")
 if not openai_available:
@@ -237,6 +293,22 @@ if generate:
         st.error("선택한 항목의 텍스트가 비어 있습니다.")
         st.stop()
 
+    with st.spinner("🔍 핵심 장면 추출 중..."):
+        try:
+            core_scene = summarize_for_visuals(
+                base_text,
+                provider=prompt_provider,
+                gemini_client=gemini_client,
+            )
+        except Exception as exc:
+            st.error(f"핵심 장면 요약 생성 중 오류가 발생했습니다: {exc}")
+            st.stop()
+    core_scene = (core_scene or "").strip()
+    st.session_state["core_scene_summary"] = core_scene
+    if core_scene:
+        st.markdown("#### ✨ 핵심 장면 요약")
+        st.write(core_scene)
+
     with st.spinner("📝 프롬프트 작성 중..."):
         try:
             prompt = write_prompt_from_saju(
@@ -244,6 +316,7 @@ if generate:
                 system_instruction=system_prompt,
                 provider=prompt_provider,
                 gemini_client=gemini_client,
+                core_scene=core_scene,
             )
         except Exception as exc:
             st.error(f"프롬프트 생성 중 오류가 발생했습니다: {exc}")
@@ -286,3 +359,9 @@ if generate:
                 )
     else:
         st.warning("이미지 생성 결과가 비어 있습니다. 텍스트를 더 구체적으로 수정해 다시 시도해주세요.")
+
+if not generate:
+    summary_display = st.session_state.get("core_scene_summary", "").strip()
+    if summary_display:
+        st.markdown("#### ✨ 핵심 장면 요약")
+        st.write(summary_display)
