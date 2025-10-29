@@ -5,3 +5,4 @@ openai==1.51.0
 google-genai==0.3.0
 protobuf==4.25.3
 requests==2.31.0
+httpx==0.28.1
