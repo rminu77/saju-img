@@ -66,8 +66,9 @@ def get_openai_client():
         return None
     try:
         # httpx 클라이언트를 명시적으로 생성하여 프록시 문제 우회
+        # trust_env=False로 환경 변수의 프록시 설정을 무시
         import httpx
-        http_client = httpx.Client()
+        http_client = httpx.Client(trust_env=False)
         client = OpenAI(api_key=OPENAI_API_KEY, http_client=http_client)
         return client
     except ImportError:
