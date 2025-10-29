@@ -66,7 +66,8 @@ def get_openai_client():
         return None
     try:
         return OpenAI(api_key=OPENAI_API_KEY)
-    except Exception:
+    except Exception as e:
+        st.warning(f"OpenAI 클라이언트 초기화 실패: {e}")
         return None
 
 
@@ -229,6 +230,13 @@ if GEMINI_API_KEY and not gemini_client:
 
 openai_client = get_openai_client()
 openai_available = bool(openai_client)
+
+# 디버깅 정보
+st.write(f"DEBUG - OPENAI_API_KEY 설정 여부: {bool(OPENAI_API_KEY)}")
+st.write(f"DEBUG - OpenAI 패키지 import 여부: {OpenAI is not None}")
+st.write(f"DEBUG - openai_client 초기화 여부: {openai_client is not None}")
+st.write(f"DEBUG - openai_available: {openai_available}")
+
 if not gemini_client and not openai_available:
     st.error("사용 가능한 모델이 없습니다. GEMINI_API_KEY 또는 OPENAI_API_KEY를 설정해주세요.")
     st.stop()
