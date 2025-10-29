@@ -13,9 +13,9 @@ import requests
 from typing import Optional
 
 try:
-    import openai
+    from openai import OpenAI
 except ImportError:
-    openai = None
+    OpenAI = None
 
 load_dotenv()
 
@@ -61,11 +61,20 @@ def get_gemini_client():
     except Exception:
         return None
 
+def get_openai_client():
+    if not OPENAI_API_KEY or not OpenAI:
+        return None
+    try:
+        return OpenAI(api_key=OPENAI_API_KEY)
+    except Exception:
+        return None
+
 
 def summarize_for_visuals(
     source_text: str,
     provider: str = "gemini",
     gemini_client: Optional[genai.Client] = None,
+    openai_client: Optional[OpenAI] = None,
     system_instruction: str = DEFAULT_SUMMARY_INSTRUCTION,
 ) -> str:
     """
@@ -80,10 +89,9 @@ def summarize_for_visuals(
 - Keep it concrete and metaphorical, avoid fortune-telling claims.
 """
     if provider == "openai":
-        if not openai or not OPENAI_API_KEY:
-            raise ValueError("OpenAI 지원이 활성화되지 않았습니다.")
-        openai.api_key = OPENAI_API_KEY
-        completion = openai.chat.completions.create(
+        if not openai_client:
+            raise ValueError("OpenAI 클라이언트가 초기화되지 않았습니다.")
+        completion = openai_client.chat.completions.create(
             model=OPENAI_TEXT_MODEL,
             messages=[
                 {"role": "system", "content": system_instruction},
@@ -106,6 +114,7 @@ def write_prompt_from_saju(
     system_instruction: str = DEFAULT_SYSTEM_INSTRUCTION,
     provider: str = "gemini",
     gemini_client: Optional[genai.Client] = None,
+    openai_client: Optional[OpenAI] = None,
     core_scene: Optional[str] = None,
 ) -> str:
     """
@@ -126,10 +135,9 @@ def write_prompt_from_saju(
 {core_scene}
 """
     if provider == "openai":
-        if not openai or not OPENAI_API_KEY:
-            raise ValueError("OpenAI 지원이 활성화되지 않았습니다.")
-        openai.api_key = OPENAI_API_KEY
-        completion = openai.chat.completions.create(
+        if not openai_client:
+            raise ValueError("OpenAI 클라이언트가 초기화되지 않았습니다.")
+        completion = openai_client.chat.completions.create(
             model=OPENAI_TEXT_MODEL,
             messages=[
                 {"role": "system", "content": system_instruction},
@@ -152,6 +160,7 @@ def generate_images(
     num_images: int = 3,
     provider: str = "gemini",
     gemini_client: Optional[genai.Client] = None,
+    openai_client: Optional[OpenAI] = None,
 ):
     """
     텍스트만으로 이미지 생성. 최대 num_images장 시도.
@@ -159,12 +168,11 @@ def generate_images(
     """
     images = []
     if provider == "openai":
-        if not openai or not OPENAI_API_KEY:
+        if not openai_client:
             return [None] * num_images
-        openai.api_key = OPENAI_API_KEY
         for _ in range(num_images):
             try:
-                response = openai.images.generate(
+                response = openai_client.images.generate(
                     model=OPENAI_IMAGE_MODEL,
                     prompt=prompt,
                     size=OPENAI_IMAGE_SIZE,
@@ -219,7 +227,8 @@ if GEMINI_API_KEY and not gemini_client:
     st.error("Google genai 클라이언트 초기화에 실패했습니다. GEMINI_API_KEY를 확인해주세요.")
     st.stop()
 
-openai_available = bool(openai and OPENAI_API_KEY)
+openai_client = get_openai_client()
+openai_available = bool(openai_client)
 if not gemini_client and not openai_available:
     st.error("사용 가능한 모델이 없습니다. GEMINI_API_KEY 또는 OPENAI_API_KEY를 설정해주세요.")
     st.stop()
@@ -299,6 +308,7 @@ if generate:
                 base_text,
                 provider=prompt_provider,
                 gemini_client=gemini_client,
+                openai_client=openai_client,
             )
         except Exception as exc:
             st.error(f"핵심 장면 요약 생성 중 오류가 발생했습니다: {exc}")
@@ -316,6 +326,7 @@ if generate:
                 system_instruction=system_prompt,
                 provider=prompt_provider,
                 gemini_client=gemini_client,
+                openai_client=openai_client,
                 core_scene=core_scene,
             )
         except Exception as exc:
@@ -336,6 +347,7 @@ if generate:
             num_images=3,
             provider=image_provider,
             gemini_client=gemini_client,
+            openai_client=openai_client,
         )
 
     valid = [i for i in imgs if i is not None]
