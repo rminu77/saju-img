@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: saju-image-app
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run sajun_img.py --server.port $PORT --server.address 0.0.0.0
+    plan: free
