@@ -5,6 +5,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.3
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      pip install --upgrade pip setuptools wheel
+      pip install -r requirements.txt
     startCommand: streamlit run sajun_img.py --server.port $PORT --server.address 0.0.0.0
     plan: free
