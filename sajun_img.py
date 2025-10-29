@@ -65,7 +65,21 @@ def get_openai_client():
     if not OPENAI_API_KEY or not OpenAI:
         return None
     try:
-        return OpenAI(api_key=OPENAI_API_KEY)
+        # 프록시 관련 환경 변수를 임시로 제거하고 클라이언트 초기화
+        import os
+        old_proxy_vars = {}
+        proxy_keys = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'OPENAI_PROXY']
+        for key in proxy_keys:
+            if key in os.environ:
+                old_proxy_vars[key] = os.environ.pop(key)
+
+        client = OpenAI(api_key=OPENAI_API_KEY)
+
+        # 환경 변수 복원
+        for key, value in old_proxy_vars.items():
+            os.environ[key] = value
+
+        return client
     except Exception as e:
         st.warning(f"OpenAI 클라이언트 초기화 실패: {e}")
         return None
