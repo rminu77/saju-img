@@ -34,12 +34,12 @@ OPENAI_IMAGE_SIZE = "1024x1024"
 DEFAULT_SYSTEM_INSTRUCTION = (
     "You are an expert visual prompt writer for an image generation model. "
     "Read the provided Korean saju text and produce ONE concise, high-quality image prompt suitable for "
-    "photorealistic or illustrative rendering. Avoid fortune-telling claims; instead focus on visual metaphors, "
-    # 👇 수정된 부분
-    "**which may include a human figure used symbolically or metaphorically (e.g., their posture, attire, or interaction with elements)**, "
-    "colors, elements (wood/fire/earth/metal/water), seasonal motifs, props, and composition. "
-    # 👆 수정된 부분
-    "Include style, lighting, mood, and camera/composition details. "
+    "photorealistic or illustrative rendering. Infuse the scene with a mystical, hopeful atmosphere rooted in Korean culture. "
+    "Incorporate traditional Korean landscapes, architecture, cultural symbols, and aesthetic sensibilities (e.g., hanok, mountains, pines, mist, lanterns, hanbok). "
+    "Focus on visual metaphors that emphasize optimism, growth, transformation, and positive energy, "
+    "which may include a human figure used symbolically or metaphorically (e.g., their posture, attire, or interaction with elements). "
+    "Utilize colors, elements (wood/fire/earth/metal/water), seasonal motifs, props, and composition to create an uplifting, harmonious scene. "
+    "Include style, lighting, mood, and camera/composition details that evoke wonder and hope. "
     "Return ONLY the final prompt in English."
 )
 DEFAULT_SUMMARY_INSTRUCTION = (
