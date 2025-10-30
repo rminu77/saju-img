@@ -369,7 +369,7 @@ if generate:
     with st.spinner("🎨 이미지 생성 중..."):
         imgs = generate_images(
             final_prompt,
-            num_images=3,
+            num_images=1,
             provider=image_provider,
             gemini_client=gemini_client,
             openai_client=openai_client,
