@@ -38,6 +38,7 @@ DEFAULT_SYSTEM_INSTRUCTION = (
     "Incorporate traditional Korean landscapes, architecture, cultural symbols, and aesthetic sensibilities (e.g., hanok, mountains, pines, mist, lanterns, hanbok). "
     "Focus on visual metaphors that emphasize optimism, growth, transformation, and positive energy, "
     "which may include a human figure used symbolically or metaphorically (e.g., their posture, attire, or interaction with elements). "
+    "When depicting human figures, portray them with beautiful, graceful, and elegant features that harmonize with the scene. "
     "Utilize colors, elements (wood/fire/earth/metal/water), seasonal motifs, props, and composition to create an uplifting, harmonious scene. "
     "Include style, lighting, mood, and camera/composition details that evoke wonder and hope. "
     "Return ONLY the final prompt in English."
