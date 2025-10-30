@@ -390,7 +390,7 @@ if generate:
             if im is None: 
                 continue
             with cols[idx % 3]:
-                st.image(im, caption=f"생성 이미지 #{idx+1}", use_column_width=True)
+                st.image(im, caption=f"생성 이미지 #{idx+1}", use_container_width=True)
                 buf = BytesIO()
                 im.save(buf, format="PNG")
                 st.download_button(
