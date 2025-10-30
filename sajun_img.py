@@ -279,12 +279,20 @@ with colB:
     saju_puli = st.text_area("사주풀이", height=180, placeholder="예) 화(火) 기운이 강하고 금/수 보완이 필요… 등 해석 요약")
 
 system_prompt_input = st.text_area(
-    "시스템 프롬프트",
+    "이미지 생성 시스템 프롬프트",
     value=DEFAULT_SYSTEM_INSTRUCTION,
     height=180,
-    help="프롬프트 작성 모델에 전달할 시스템 메시지입니다.",
+    help="이미지 프롬프트 작성 모델에 전달할 시스템 메시지입니다.",
 )
 system_prompt = system_prompt_input if system_prompt_input.strip() else DEFAULT_SYSTEM_INSTRUCTION
+
+summary_prompt_input = st.text_area(
+    "장면요약 시스템 프롬프트",
+    value=DEFAULT_SUMMARY_INSTRUCTION,
+    height=180,
+    help="핵심 장면 요약 생성 모델에 전달할 시스템 메시지입니다.",
+)
+summary_prompt = summary_prompt_input if summary_prompt_input.strip() else DEFAULT_SUMMARY_INSTRUCTION
 
 model_col_1, model_col_2 = st.columns(2)
 prompt_options = []
@@ -340,6 +348,7 @@ if generate:
                 provider=prompt_provider,
                 gemini_client=gemini_client,
                 openai_client=openai_client,
+                system_instruction=summary_prompt,
             )
         except Exception as exc:
             st.error(f"핵심 장면 요약 생성 중 오류가 발생했습니다: {exc}")
