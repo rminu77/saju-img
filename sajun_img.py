@@ -326,8 +326,6 @@ mode = st.radio(
     horizontal=True
 )
 
-quality_boost = st.checkbox("품질 강화(상세 묘사/전문 아트/16:9)", value=True)
-
 st.markdown("---")
 generate = st.button("🚀 이미지 생성", type="primary", use_container_width=True)
 
@@ -378,8 +376,6 @@ if generate:
         st.stop()
 
     final_prompt = prompt
-    if quality_boost:
-        final_prompt += ", highly detailed, professional artwork, 16:9 composition"
 
     with st.spinner("🎨 이미지 생성 중..."):
         imgs = generate_images(
