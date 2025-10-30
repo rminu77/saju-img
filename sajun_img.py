@@ -48,6 +48,8 @@ DEFAULT_SUMMARY_INSTRUCTION = (
     "Read the provided Korean saju text and distill it into one or two concise sentences that describe the key imagery, "
     "symbols, emotions, and seasonal elements that could guide an artist. "
     "The setting should always be in Korea, incorporating Korean landscapes, architecture, or cultural elements. "
+    "ALWAYS center the description around a human figure or person - describe the scene from the perspective of what the person is experiencing, doing, or feeling. "
+    "The human figure should be the main focus and narrative anchor of the visual description. "
     "Focus on positive, uplifting, and hopeful visual metaphors that inspire optimism and growth. "
     "Even when addressing challenges, frame them as opportunities for transformation and renewal. "
     "Emphasize bright colors, ascending movements, blooming elements, and harmonious compositions. "
