@@ -301,6 +301,7 @@ prompt_options = []
 image_options = []
 if gemini_client:
     prompt_options.append(("Google Gemini (gemini-2.5-pro)", ("gemini", "gemini-2.5-pro")))
+    prompt_options.append(("Google Gemini (gemini-2.5-flash)", ("gemini", "gemini-2.5-flash")))
     image_options.append(("Google Gemini (gemini-2.5-flash-image-preview)", "gemini"))
 if openai_available:
     prompt_options.append(("OpenAI GPT-4.1", ("openai", "gpt-4.1")))
