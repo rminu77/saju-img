@@ -100,6 +100,7 @@ def summarize_for_visuals(
     gemini_client: Optional[genai.Client] = None,
     openai_client: Optional[OpenAI] = None,
     system_instruction: str = DEFAULT_SUMMARY_INSTRUCTION,
+    openai_text_model: str = OPENAI_TEXT_MODEL,
 ) -> str:
     """
     사주 텍스트를 그림을 위한 1~2개의 핵심 문장으로 요약.
@@ -116,7 +117,7 @@ def summarize_for_visuals(
         if not openai_client:
             raise ValueError("OpenAI 클라이언트가 초기화되지 않았습니다.")
         completion = openai_client.chat.completions.create(
-            model=OPENAI_TEXT_MODEL,
+            model=openai_text_model,
             messages=[
                 {"role": "system", "content": system_instruction},
                 {"role": "user", "content": user_msg},
@@ -140,6 +141,7 @@ def write_prompt_from_saju(
     gemini_client: Optional[genai.Client] = None,
     openai_client: Optional[OpenAI] = None,
     core_scene: Optional[str] = None,
+    openai_text_model: str = OPENAI_TEXT_MODEL,
 ) -> str:
     """
     사주 텍스트(명식/풀이) -> 이미지용 프롬프트 1개 생성
@@ -162,7 +164,7 @@ def write_prompt_from_saju(
         if not openai_client:
             raise ValueError("OpenAI 클라이언트가 초기화되지 않았습니다.")
         completion = openai_client.chat.completions.create(
-            model=OPENAI_TEXT_MODEL,
+            model=openai_text_model,
             messages=[
                 {"role": "system", "content": system_instruction},
                 {"role": "user", "content": user_msg},
@@ -294,15 +296,20 @@ summary_prompt_input = st.text_area(
 )
 summary_prompt = summary_prompt_input if summary_prompt_input.strip() else DEFAULT_SUMMARY_INSTRUCTION
 
-model_col_1, model_col_2 = st.columns(2)
+model_col_1, model_col_2, model_col_3 = st.columns(3)
 prompt_options = []
 image_options = []
+openai_text_model_options = []
 if gemini_client:
     prompt_options.append(("Google Gemini (gemini-2.5-pro)", "gemini"))
     image_options.append(("Google Gemini (gemini-2.5-flash-image-preview)", "gemini"))
 if openai_available:
-    prompt_options.append(("OpenAI GPT-4.1", "openai"))
+    prompt_options.append(("OpenAI", "openai"))
     image_options.append(("OpenAI GPT-Image-1", "openai"))
+    openai_text_model_options = [
+        ("GPT-4.1", "gpt-4.1"),
+        ("GPT-4.1-Mini", "gpt-4.1-mini"),
+    ]
 
 with model_col_1:
     prompt_model_choice = st.selectbox(
@@ -319,6 +326,16 @@ with model_col_2:
 
 prompt_provider = dict(prompt_options)[prompt_model_choice]
 image_provider = dict(image_options)[image_model_choice]
+
+openai_text_model_selected = OPENAI_TEXT_MODEL
+with model_col_3:
+    if openai_available and prompt_provider == "openai":
+        openai_text_model_label = st.selectbox(
+            "OpenAI 텍스트 모델",
+            options=[label for label, _ in openai_text_model_options],
+            index=0,
+        )
+        openai_text_model_selected = dict(openai_text_model_options)[openai_text_model_label]
 
 mode = st.radio(
     "생성 기준 선택",
@@ -347,6 +364,7 @@ if generate:
                 gemini_client=gemini_client,
                 openai_client=openai_client,
                 system_instruction=summary_prompt,
+                openai_text_model=openai_text_model_selected,
             )
         except Exception as exc:
             st.error(f"핵심 장면 요약 생성 중 오류가 발생했습니다: {exc}")
@@ -366,6 +384,7 @@ if generate:
                 gemini_client=gemini_client,
                 openai_client=openai_client,
                 core_scene=core_scene,
+                openai_text_model=openai_text_model_selected,
             )
         except Exception as exc:
             st.error(f"프롬프트 생성 중 오류가 발생했습니다: {exc}")
