@@ -296,20 +296,16 @@ summary_prompt_input = st.text_area(
 )
 summary_prompt = summary_prompt_input if summary_prompt_input.strip() else DEFAULT_SUMMARY_INSTRUCTION
 
-model_col_1, model_col_2, model_col_3 = st.columns(3)
+model_col_1, model_col_2 = st.columns(2)
 prompt_options = []
 image_options = []
-openai_text_model_options = []
 if gemini_client:
-    prompt_options.append(("Google Gemini (gemini-2.5-pro)", "gemini"))
+    prompt_options.append(("Google Gemini (gemini-2.5-pro)", ("gemini", "gemini-2.5-pro")))
     image_options.append(("Google Gemini (gemini-2.5-flash-image-preview)", "gemini"))
 if openai_available:
-    prompt_options.append(("OpenAI", "openai"))
+    prompt_options.append(("OpenAI GPT-4.1", ("openai", "gpt-4.1")))
+    prompt_options.append(("OpenAI GPT-4.1-Mini", ("openai", "gpt-4.1-mini")))
     image_options.append(("OpenAI GPT-Image-1", "openai"))
-    openai_text_model_options = [
-        ("GPT-4.1", "gpt-4.1"),
-        ("GPT-4.1-Mini", "gpt-4.1-mini"),
-    ]
 
 with model_col_1:
     prompt_model_choice = st.selectbox(
@@ -317,6 +313,11 @@ with model_col_1:
         options=[label for label, _ in prompt_options],
         index=0,
     )
+
+prompt_provider, openai_text_model_selected = dict(prompt_options)[prompt_model_choice]
+if prompt_provider != "openai":
+    openai_text_model_selected = OPENAI_TEXT_MODEL
+
 with model_col_2:
     image_model_choice = st.selectbox(
         "이미지 모델 선택",
@@ -324,18 +325,7 @@ with model_col_2:
         index=0,
     )
 
-prompt_provider = dict(prompt_options)[prompt_model_choice]
 image_provider = dict(image_options)[image_model_choice]
-
-openai_text_model_selected = OPENAI_TEXT_MODEL
-with model_col_3:
-    if openai_available and prompt_provider == "openai":
-        openai_text_model_label = st.selectbox(
-            "OpenAI 텍스트 모델",
-            options=[label for label, _ in openai_text_model_options],
-            index=0,
-        )
-        openai_text_model_selected = dict(openai_text_model_options)[openai_text_model_label]
 
 mode = st.radio(
     "생성 기준 선택",
