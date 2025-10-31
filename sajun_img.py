@@ -57,7 +57,7 @@ DEFAULT_SUMMARY_INSTRUCTION = (
     "Emphasize bright colors, ascending movements, blooming elements, and harmonious compositions. "
     "Focus on concrete visual motifs and atmospheric cues that evoke hope and possibility. "
     "Create a description that an artist can immediately visualize and paint as a single, cohesive scene. "
-    "Output the description in Korean as 1-2 sentences."
+    "Output the description in English as 1-2 sentences."
 )
 
 # ----------------------------
