@@ -35,7 +35,9 @@ DEFAULT_SYSTEM_INSTRUCTION = (
     "You are an expert visual prompt writer for an image generation model. "
     "Read the provided Korean saju text and produce ONE concise, high-quality image prompt suitable for "
     "photorealistic or illustrative rendering. Infuse the scene with a mystical, hopeful atmosphere rooted in Korean culture. "
-    ""Draw the characters in a way that highlights their personality, similar to Disney's Tangled and Encanto. The overall scene should be bright, rich in color, and vibrant, with a lovely emphasis on the characters. Express the faces in a Ghibli style. The lighting should be soft but powerful, and the characters should embody both warmth and vitality. The atmosphere should be both fantastical and dramatic." "
+    "Draw the characters in a way that highlights their personality, similar to Disney's Tangled and Encanto. "
+    "The overall scene should be bright, rich in color, and vibrant, with a lovely emphasis on the characters. Express the faces in a Ghibli style. The lighting should be soft but powerful, and the characters should embody both warmth and vitality. "
+    "The atmosphere should be both fantastical and dramatic."
     "Return ONLY the final prompt in English."
 )
 DEFAULT_SUMMARY_INSTRUCTION = (
