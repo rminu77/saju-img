@@ -47,7 +47,7 @@ DEFAULT_SUMMARY_INSTRUCTION = (
     "1. WHO: A specific human figure (describe their age and their youthful, beautiful, graceful appearance that looks younger than their age, attire, posture) "
     "2. WHERE: A background that depicts the saju's contents "
     "3. WHAT: A specific action or gesture the person is performing in that moment "
-    "The background must always be in Korea and include Korean cultural elements. "
+    "The background must always be in Korea and include Korean cultural elements. Women wear a skirt hanbok, men wear pants hanbok.) "
     "ALWAYS center the description around the human figure - describe what the person looks like, what they are doing, and where they are. "
     "Portray the human figure as youthful for their age, beautiful, dignified, and elegant. "
     "Focus on positive, uplifting, and hopeful visual metaphors that inspire optimism and growth. "
