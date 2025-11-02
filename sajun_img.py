@@ -35,11 +35,7 @@ DEFAULT_SYSTEM_INSTRUCTION = (
     "You are an expert visual prompt writer for an image generation model. "
     "Read the provided Korean saju text and produce ONE concise, high-quality image prompt suitable for "
     "photorealistic or illustrative rendering. Infuse the scene with a mystical, hopeful atmosphere rooted in Korean culture. "
-    "Focus on visual metaphors that emphasize optimism, growth, transformation, and positive energy, "
-    "which may include a human figure used symbolically or metaphorically (e.g., their posture, attire, or interaction with elements). "
-    "When depicting human figures, portray them with beautiful, graceful, and elegant features that harmonize with the scene. "
-    "Utilize colors, elements (wood/fire/earth/metal/water), seasonal motifs, props, and composition to create an uplifting, harmonious scene. "
-    "Include style, lighting, mood, and camera/composition details that evoke wonder and hope. "
+    ""Draw the characters in a way that highlights their personality, similar to Disney's Tangled and Encanto. The overall scene should be bright, rich in color, and vibrant, with a lovely emphasis on the characters. Express the faces in a Ghibli style. The lighting should be soft but powerful, and the characters should embody both warmth and vitality. The atmosphere should be both fantastical and dramatic." "
     "Return ONLY the final prompt in English."
 )
 DEFAULT_SUMMARY_INSTRUCTION = (
