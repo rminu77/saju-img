@@ -22,6 +22,28 @@ load_dotenv()
 st.set_page_config(page_title="사주 → 이미지 생성기", page_icon="🧧", layout="wide")
 
 # ----------------------------
+# 로그인 체크
+# ----------------------------
+def check_login():
+    if "logged_in" not in st.session_state:
+        st.session_state.logged_in = False
+
+    if not st.session_state.logged_in:
+        st.title("🔐 로그인")
+        st.text_input("ID")
+        password = st.text_input("PW", type="password")
+
+        if st.button("로그인"):
+            if password == "mateplan":
+                st.session_state.logged_in = True
+                st.rerun()
+            else:
+                st.error("비밀번호가 올바르지 않습니다.")
+        st.stop()
+
+check_login()
+
+# ----------------------------
 # 설정
 # ----------------------------
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
