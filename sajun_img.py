@@ -288,14 +288,15 @@ summary_prompt = summary_prompt_input if summary_prompt_input.strip() else DEFAU
 model_col_1, model_col_2 = st.columns(2)
 prompt_options = []
 image_options = []
+# OpenAI를 먼저 추가하여 기본값으로 설정
+if openai_available:
+    prompt_options.append(("OpenAI GPT-4.1-Mini", ("openai", "gpt-4.1-mini")))
+    prompt_options.append(("OpenAI GPT-4.1", ("openai", "gpt-4.1")))
+    image_options.append(("OpenAI GPT-Image-1", "openai"))
 if gemini_client:
     prompt_options.append(("Google Gemini (gemini-2.5-pro)", ("gemini", "gemini-2.5-pro")))
     prompt_options.append(("Google Gemini (gemini-2.5-flash)", ("gemini", "gemini-2.5-flash")))
     image_options.append(("Google Gemini (gemini-2.5-flash-image-preview)", "gemini"))
-if openai_available:
-    prompt_options.append(("OpenAI GPT-4.1", ("openai", "gpt-4.1")))
-    prompt_options.append(("OpenAI GPT-4.1-Mini", ("openai", "gpt-4.1-mini")))
-    image_options.append(("OpenAI GPT-Image-1", "openai"))
 
 with model_col_1:
     prompt_model_choice = st.selectbox(
@@ -325,7 +326,17 @@ if generate:
         st.error("사주풀이를 입력해주세요.")
         st.stop()
 
-    base_text = saju_puli
+    # 이미지 생성 시작 시점의 설정을 고정
+    locked_saju_puli = saju_puli
+    locked_system_prompt = system_prompt
+    locked_summary_prompt = summary_prompt
+    locked_prompt_provider = prompt_provider
+    locked_openai_text_model = openai_text_model_selected
+    locked_image_provider = image_provider
+    locked_gemini_client = gemini_client
+    locked_openai_client = openai_client
+
+    base_text = locked_saju_puli
     if not base_text.strip():
         st.error("사주풀이 텍스트가 비어 있습니다.")
         st.stop()
@@ -334,11 +345,11 @@ if generate:
         try:
             core_scene = summarize_for_visuals(
                 base_text,
-                provider=prompt_provider,
-                gemini_client=gemini_client,
-                openai_client=openai_client,
-                system_instruction=summary_prompt,
-                openai_text_model=openai_text_model_selected,
+                provider=locked_prompt_provider,
+                gemini_client=locked_gemini_client,
+                openai_client=locked_openai_client,
+                system_instruction=locked_summary_prompt,
+                openai_text_model=locked_openai_text_model,
             )
         except Exception as exc:
             st.error(f"핵심 장면 요약 생성 중 오류가 발생했습니다: {exc}")
@@ -353,12 +364,12 @@ if generate:
         try:
             prompt = write_prompt_from_saju(
                 base_text,
-                system_instruction=system_prompt,
-                provider=prompt_provider,
-                gemini_client=gemini_client,
-                openai_client=openai_client,
+                system_instruction=locked_system_prompt,
+                provider=locked_prompt_provider,
+                gemini_client=locked_gemini_client,
+                openai_client=locked_openai_client,
                 core_scene=core_scene,
-                openai_text_model=openai_text_model_selected,
+                openai_text_model=locked_openai_text_model,
             )
         except Exception as exc:
             st.error(f"프롬프트 생성 중 오류가 발생했습니다: {exc}")
@@ -374,9 +385,9 @@ if generate:
         imgs = generate_images(
             final_prompt,
             num_images=1,
-            provider=image_provider,
-            gemini_client=gemini_client,
-            openai_client=openai_client,
+            provider=locked_image_provider,
+            gemini_client=locked_gemini_client,
+            openai_client=locked_openai_client,
         )
 
     valid = [i for i in imgs if i is not None]
