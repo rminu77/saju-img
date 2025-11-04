@@ -267,11 +267,7 @@ if not GEMINI_API_KEY:
 if not openai_available:
     st.info("OPENAI_API_KEY가 설정되지 않았거나 openai 패키지가 없어 Google Gemini 옵션만 사용할 수 있습니다.")
 
-colA, colB = st.columns(2)
-with colA:
-    saju_meongsik = st.text_area("사주명식", height=180, placeholder="예) 갑자 庚子年 丙寅月 壬午日 乙巳時 ...")
-with colB:
-    saju_puli = st.text_area("사주풀이", height=180, placeholder="예) 화(火) 기운이 강하고 금/수 보완이 필요… 등 해석 요약")
+saju_puli = st.text_area("사주풀이", height=180, placeholder="예) 화(火) 기운이 강하고 금/수 보완이 필요… 등 해석 요약")
 
 system_prompt_input = st.text_area(
     "이미지 생성 시스템 프롬프트",
@@ -321,23 +317,17 @@ with model_col_2:
 
 image_provider = dict(image_options)[image_model_choice]
 
-mode = st.radio(
-    "생성 기준 선택",
-    ("사주명식으로 이미지 만들기", "사주풀이로 이미지 만들기"),
-    horizontal=True
-)
-
 st.markdown("---")
 generate = st.button("🚀 이미지 생성", type="primary", use_container_width=True)
 
 if generate:
-    if not saju_meongsik and not saju_puli:
-        st.error("사주명식 또는 사주풀이 중 하나 이상을 입력해주세요.")
+    if not saju_puli:
+        st.error("사주풀이를 입력해주세요.")
         st.stop()
 
-    base_text = saju_meongsik if mode == "사주명식으로 이미지 만들기" else saju_puli
+    base_text = saju_puli
     if not base_text.strip():
-        st.error("선택한 항목의 텍스트가 비어 있습니다.")
+        st.error("사주풀이 텍스트가 비어 있습니다.")
         st.stop()
 
     with st.spinner("🔍 핵심 장면 추출 중..."):
