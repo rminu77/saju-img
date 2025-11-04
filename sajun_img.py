@@ -54,13 +54,11 @@ OPENAI_TEXT_MODEL = "gpt-4.1"
 OPENAI_IMAGE_MODEL = "gpt-image-1"
 OPENAI_IMAGE_SIZE = "1024x1024"
 DEFAULT_SYSTEM_INSTRUCTION = (
-    "You are an expert visual prompt writer for an image generation model. "
-    "Read the provided Korean saju text and produce ONE concise, high-quality image prompt suitable for "
-    "photorealistic or illustrative rendering. Infuse the scene with a mystical, hopeful atmosphere rooted in Korean culture. "
+    "A mystical, hopeful scene rooted in Korean culture. "
     "Draw the characters in a way that highlights their personality, similar to Disney's Tangled and Encanto. "
-    "The overall scene should be bright, rich in color, and vibrant, with a lovely emphasis on the characters. Express the faces in a Ghibli style. The lighting should be soft but powerful, and the characters should embody both warmth and vitality. "
+    "The overall scene should be bright, rich in color, and vibrant, with a lovely emphasis on the characters. "
+    "Express the faces in a Ghibli style. The lighting should be soft but powerful, and the characters should embody both warmth and vitality. "
     "The atmosphere should be both fantastical and dramatic."
-    "Return ONLY the final prompt in English."
 )
 DEFAULT_SUMMARY_INSTRUCTION = (
     "You are a Korean-to-English creative synthesis assistant with a warm, hopeful tone. "
@@ -164,47 +162,17 @@ def write_prompt_from_saju(
     openai_text_model: str = OPENAI_TEXT_MODEL,
 ) -> str:
     """
-    사주 텍스트(명식/풀이) -> 이미지용 프롬프트 1개 생성
+    사주 텍스트와 스타일 지시사항을 결합하여 직접 이미지 생성 프롬프트로 반환
     """
-    user_msg = f"""
-[SAJU TEXT / Korean]
-{source_text}
+    # 기본 스타일 프롬프트로 시작
+    prompt_parts = [system_instruction]
 
-[REQUEST]
-- Compose one scene that visually symbolizes the above text
-- Include subject, background, props, color palette, texture, lighting, mood, and art style
-- Prefer 16:9 composition; high fidelity wording (but avoid exaggerated numeric buzzwords)
-
-[MANDATORY STYLE REQUIREMENTS]
-- Draw the characters in a way that highlights their personality, similar to Disney's Tangled and Encanto
-- The overall scene should be bright, rich in color, and vibrant, with a lovely emphasis on the characters
-- Express the faces in a Ghibli style
-"""
+    # 핵심 장면 추가
     if core_scene:
-        user_msg += f"""
-[CORE SCENE SUMMARY / Korean]
-{core_scene}
-"""
-    if provider == "openai":
-        if not openai_client:
-            raise ValueError("OpenAI 클라이언트가 초기화되지 않았습니다.")
-        completion = openai_client.chat.completions.create(
-            model=openai_text_model,
-            messages=[
-                {"role": "system", "content": system_instruction},
-                {"role": "user", "content": user_msg},
-            ]
-        )
-        return (completion.choices[0].message.content or "").strip()
+        prompt_parts.append(core_scene)
 
-    if not gemini_client:
-        raise ValueError("Gemini 클라이언트가 초기화되지 않았습니다.")
-
-    resp = gemini_client.models.generate_content(
-        model=TEXT_MODEL,
-        contents=[system_instruction, user_msg]
-    )
-    return (resp.text or "").strip()
+    # 모든 부분을 하나의 프롬프트로 결합
+    return " ".join(prompt_parts)
 
 def generate_images(
     prompt: str,
