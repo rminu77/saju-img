@@ -56,7 +56,7 @@ OPENAI_IMAGE_SIZE = "1024x1024"
 DEFAULT_SYSTEM_INSTRUCTION = (
     "A mystical, hopeful scene rooted in Korean culture. "
     "Draw the characters in a way that highlights their personality, similar to Disney's Tangled and Encanto. "
-    "The overall scene should be bright, rich in color, and vibrant, with a lovely emphasis on the characters. "
+    "The overall scene should be bright, rich in color, and vibrant, must have no wrinkles, with a lovely emphasis on the characters. "
     "Express the faces in a Ghibli style. The lighting should be soft but powerful, and the characters should embody both warmth and vitality. "
     "The atmosphere should be both fantastical and dramatic."
 )
@@ -64,7 +64,7 @@ DEFAULT_SUMMARY_INSTRUCTION = (
     "You are a Korean-to-English creative synthesis assistant with a warm, hopeful tone. "
     "Read the provided Korean saju text and create a vivid, single-scene description that can be rendered as one beautiful painting. "
     "Your description MUST include: "
-    "1. WHO: A specific human figure (describe gender, youthful for their age, beautiful, and elegant appearance, attire, posture, must have no wrinkles) "
+    "1. WHO: A specific human figure (describe gender, youthful for their age, beautiful, and elegant appearance, attire, posture) "
     "2. WHERE: A background that depicts the saju's contents "
     "3. WHAT: A specific action or gesture the person is performing in that moment "
     "The background must always be in Korea and include Korean cultural elements. Women wear a skirt hanbok, men wear pants hanbok.) "
