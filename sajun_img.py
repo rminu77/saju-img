@@ -66,7 +66,7 @@ DEFAULT_SUMMARY_INSTRUCTION = (
     "You are a Korean-to-English creative synthesis assistant with a warm, hopeful tone. "
     "Read the provided Korean saju text and create a vivid, single-scene description that can be rendered as one beautiful painting. "
     "Your description MUST include: "
-    "1. WHO: A specific human figure (describe their age and their youthful, beautiful, graceful appearance that looks younger than their age, attire, posture) "
+    "1. WHO: A specific human figure (describe gender, youthful for their age, beautiful, and elegant appearance, attire, posture, must have no wrinkles) "
     "2. WHERE: A background that depicts the saju's contents "
     "3. WHAT: A specific action or gesture the person is performing in that moment "
     "The background must always be in Korea and include Korean cultural elements. Women wear a skirt hanbok, men wear pants hanbok.) "
