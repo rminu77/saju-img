@@ -174,6 +174,11 @@ def write_prompt_from_saju(
 - Compose one scene that visually symbolizes the above text
 - Include subject, background, props, color palette, texture, lighting, mood, and art style
 - Prefer 16:9 composition; high fidelity wording (but avoid exaggerated numeric buzzwords)
+
+[MANDATORY STYLE REQUIREMENTS]
+- Draw the characters in a way that highlights their personality, similar to Disney's Tangled and Encanto
+- The overall scene should be bright, rich in color, and vibrant, with a lovely emphasis on the characters
+- Express the faces in a Ghibli style
 """
     if core_scene:
         user_msg += f"""
