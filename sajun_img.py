@@ -11,6 +11,7 @@ import base64
 from dotenv import load_dotenv
 import requests
 from typing import Optional
+from datetime import datetime
 
 try:
     from openai import OpenAI
@@ -19,7 +20,7 @@ except ImportError:
 
 load_dotenv()
 
-st.set_page_config(page_title="사주 → 이미지 생성기", page_icon="🧧", layout="wide")
+st.set_page_config(page_title="사주 → HTML 생성기", page_icon="🧧", layout="wide")
 
 # ----------------------------
 # 로그인 체크
@@ -50,9 +51,10 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 TEXT_MODEL = "gemini-2.5-pro"                 # 프롬프트 작성 모델
 IMAGE_MODEL = "gemini-2.5-flash-image-preview"  # 이미지 생성 모델
-OPENAI_TEXT_MODEL = "gpt-4.1"
+OPENAI_TEXT_MODEL = "gpt-4.1-mini"  # 장면 요약 모델
 OPENAI_IMAGE_MODEL = "gpt-image-1"
 OPENAI_IMAGE_SIZE = "1024x1024"
+RESULT_DIR = "/Users/mason/Documents/사주/result"
 DEFAULT_SYSTEM_INSTRUCTION = (
     "A mystical, hopeful scene rooted in Korean culture. "
     "Draw the characters in a way that highlights their personality, similar to Disney's Tangled and Encanto. "
@@ -235,44 +237,141 @@ def generate_images(
             images.append(None)
     return images
 
+def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
+                  birth_time: str, sections: dict, image_filename: str) -> str:
+    """
+    19개 섹션 내용을 받아서 HTML을 생성
+    """
+    html = f"""<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{user_name} 님의 토정비결</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter and Noto Sans KR -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {{
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }}
+    </style>
+</head>
+<body class="bg-gray-100 py-10 px-4">
+
+    <main class="max-w-3xl mx-auto bg-white shadow-2xl rounded-xl overflow-hidden">
+        <div class="p-8 sm:p-12">
+
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-4 text-center">
+                {user_name} 님의 토정비결
+            </h1>
+
+            <p class="text-lg text-gray-600 mb-10 font-medium text-center">
+                <strong>[ {gender} ]</strong> 양력 {solar_date} {birth_time} / 음력 {lunar_date} {birth_time}
+            </p>
+
+            <!-- 섹션: 그림으로 보는 새해운세 -->
+            <section class="mb-10">
+                <h2 class="text-2xl font-semibold text-blue-700 border-b-2 border-blue-100 pb-3 mb-6">
+                    그림으로 보는 새해운세
+                </h2>
+                <div class="flex justify-center">
+                    <img src="{image_filename}" alt="새해운세 이미지" class="rounded-lg shadow-lg max-w-full h-auto">
+                </div>
+            </section>
+"""
+
+    # 19개 섹션 추가
+    section_titles = [
+        "핵심포인트", "올해의총운", "일년신수(전반기)", "일년신수(후반기)",
+        "올해의연애운", "올해의건강운", "올해의직장운", "올해의소망운",
+        "올해의여행이사운", "월별운", "재물운의특성", "재물모으는법",
+        "재물손실막는법", "현재의재물운", "시기적운세", "대길",
+        "대흉", "현재의길흉사", "운명뛰어넘기"
+    ]
+
+    for title in section_titles:
+        content = sections.get(title, "").strip()
+        if content:
+            html += f"""
+            <section class="mb-10">
+                <h2 class="text-2xl font-semibold text-blue-700 border-b-2 border-blue-100 pb-3 mb-6">
+                    {title}
+                </h2>
+                <div class="space-y-4">
+                    <p class="text-base text-gray-700 leading-relaxed">
+                        {content.replace(chr(10), '<br>')}
+                    </p>
+                </div>
+            </section>
+"""
+
+    html += """
+        </div>
+    </main>
+
+</body>
+</html>
+"""
+    return html
+
 # ----------------------------
 # UI
 # ----------------------------
-st.title("🧧 사주 텍스트 → 이미지 생성기")
-st.caption("프롬프트 생성: gemini-2.0-flash · 이미지 생성: gemini-2.5-flash-image-preview (OpenAI 옵션 지원)")
+st.title("🧧 토정비결 HTML 생성기")
+st.caption("19개 항목을 입력하면 이미지와 함께 HTML을 생성합니다")
+
+# result 디렉토리가 없으면 생성
+if not os.path.exists(RESULT_DIR):
+    os.makedirs(RESULT_DIR)
 
 gemini_client = get_gemini_client()
-if GEMINI_API_KEY and not gemini_client:
-    st.error("Google genai 클라이언트 초기화에 실패했습니다. GEMINI_API_KEY를 확인해주세요.")
-    st.stop()
-
 openai_client = get_openai_client()
 openai_available = bool(openai_client)
 
-# 디버깅 정보
-st.write(f"DEBUG - OPENAI_API_KEY 설정 여부: {bool(OPENAI_API_KEY)}")
-st.write(f"DEBUG - OpenAI 패키지 import 여부: {OpenAI is not None}")
-st.write(f"DEBUG - openai_client 초기화 여부: {openai_client is not None}")
-st.write(f"DEBUG - openai_available: {openai_available}")
-
-if not gemini_client and not openai_available:
-    st.error("사용 가능한 모델이 없습니다. GEMINI_API_KEY 또는 OPENAI_API_KEY를 설정해주세요.")
+if not openai_available:
+    st.error("OPENAI_API_KEY가 설정되지 않았거나 openai 패키지가 없습니다.")
     st.stop()
 
 if "core_scene_summary" not in st.session_state:
     st.session_state.core_scene_summary = ""
 
-if not GEMINI_API_KEY:
-    st.info("GEMINI_API_KEY가 설정되지 않아 OpenAI 옵션만 사용할 수 있습니다.")
-if not openai_available:
-    st.info("OPENAI_API_KEY가 설정되지 않았거나 openai 패키지가 없어 Google Gemini 옵션만 사용할 수 있습니다.")
+# 사용자 정보 입력
+st.subheader("📋 기본 정보")
+col1, col2 = st.columns(2)
+with col1:
+    user_name = st.text_input("이름", value="김영희")
+    gender = st.selectbox("성별", ["남자", "여자"])
+with col2:
+    solar_date = st.text_input("양력 생년월일", value="1988-08-09")
+    lunar_date = st.text_input("음력 생년월일", value="1988-06-27")
+    birth_time = st.text_input("시간", value="辰時")
 
-saju_puli = st.text_area("사주풀이", height=180, placeholder="예) 화(火) 기운이 강하고 금/수 보완이 필요… 등 해석 요약")
+st.markdown("---")
+st.subheader("📝 19개 항목 입력")
+
+# 19개 입력창
+sections = {}
+section_titles = [
+    "핵심포인트", "올해의총운", "일년신수(전반기)", "일년신수(후반기)",
+    "올해의연애운", "올해의건강운", "올해의직장운", "올해의소망운",
+    "올해의여행이사운", "월별운", "재물운의특성", "재물모으는법",
+    "재물손실막는법", "현재의재물운", "시기적운세", "대길",
+    "대흉", "현재의길흉사", "운명뛰어넘기"
+]
+
+for title in section_titles:
+    sections[title] = st.text_area(title, height=100, key=title)
 
 system_prompt_input = st.text_area(
     "이미지 생성 시스템 프롬프트",
     value=DEFAULT_SYSTEM_INSTRUCTION,
-    height=180,
+    height=120,
     help="이미지 프롬프트 작성 모델에 전달할 시스템 메시지입니다.",
 )
 system_prompt = system_prompt_input if system_prompt_input.strip() else DEFAULT_SYSTEM_INSTRUCTION
@@ -280,80 +379,40 @@ system_prompt = system_prompt_input if system_prompt_input.strip() else DEFAULT_
 summary_prompt_input = st.text_area(
     "장면요약 시스템 프롬프트",
     value=DEFAULT_SUMMARY_INSTRUCTION,
-    height=180,
+    height=120,
     help="핵심 장면 요약 생성 모델에 전달할 시스템 메시지입니다.",
 )
 summary_prompt = summary_prompt_input if summary_prompt_input.strip() else DEFAULT_SUMMARY_INSTRUCTION
 
-model_col_1, model_col_2 = st.columns(2)
-prompt_options = []
-image_options = []
-# OpenAI를 먼저 추가하여 기본값으로 설정
-if openai_available:
-    prompt_options.append(("OpenAI GPT-4.1-Mini", ("openai", "gpt-4.1-mini")))
-    prompt_options.append(("OpenAI GPT-4.1", ("openai", "gpt-4.1")))
-    image_options.append(("OpenAI GPT-Image-1", "openai"))
-if gemini_client:
-    prompt_options.append(("Google Gemini (gemini-2.5-pro)", ("gemini", "gemini-2.5-pro")))
-    prompt_options.append(("Google Gemini (gemini-2.5-flash)", ("gemini", "gemini-2.5-flash")))
-    image_options.append(("Google Gemini (gemini-2.5-flash-image-preview)", "gemini"))
-
-with model_col_1:
-    prompt_model_choice = st.selectbox(
-        "프롬프트 모델 선택",
-        options=[label for label, _ in prompt_options],
-        index=0,
-    )
-
-prompt_provider, openai_text_model_selected = dict(prompt_options)[prompt_model_choice]
-if prompt_provider != "openai":
-    openai_text_model_selected = OPENAI_TEXT_MODEL
-
-with model_col_2:
-    image_model_choice = st.selectbox(
-        "이미지 모델 선택",
-        options=[label for label, _ in image_options],
-        index=0,
-    )
-
-image_provider = dict(image_options)[image_model_choice]
-
 st.markdown("---")
-generate = st.button("🚀 이미지 생성", type="primary", use_container_width=True)
+generate = st.button("🚀 HTML 생성", type="primary", use_container_width=True)
 
 if generate:
-    if not saju_puli:
-        st.error("사주풀이를 입력해주세요.")
+    # "올해의총운" 텍스트로 이미지 생성
+    base_text = sections.get("올해의총운", "").strip()
+    if not base_text:
+        st.error("'올해의총운'을 입력해주세요. 이 내용으로 이미지를 생성합니다.")
         st.stop()
 
     # 이미지 생성 시작 시점의 설정을 고정
-    locked_saju_puli = saju_puli
     locked_system_prompt = system_prompt
     locked_summary_prompt = summary_prompt
-    locked_prompt_provider = prompt_provider
-    locked_openai_text_model = openai_text_model_selected
-    locked_image_provider = image_provider
-    locked_gemini_client = gemini_client
     locked_openai_client = openai_client
 
-    base_text = locked_saju_puli
-    if not base_text.strip():
-        st.error("사주풀이 텍스트가 비어 있습니다.")
-        st.stop()
-
-    with st.spinner("🔍 핵심 장면 추출 중..."):
+    with st.spinner("🔍 핵심 장면 추출 중 (gpt-4.1-mini 사용)..."):
         try:
             core_scene = summarize_for_visuals(
                 base_text,
-                provider=locked_prompt_provider,
-                gemini_client=locked_gemini_client,
+                provider="openai",
+                gemini_client=None,
                 openai_client=locked_openai_client,
                 system_instruction=locked_summary_prompt,
-                openai_text_model=locked_openai_text_model,
+                openai_text_model="gpt-4.1-mini",
             )
         except Exception as exc:
             st.error(f"핵심 장면 요약 생성 중 오류가 발생했습니다: {exc}")
             st.stop()
+
     core_scene = (core_scene or "").strip()
     st.session_state["core_scene_summary"] = core_scene
     if core_scene:
@@ -365,11 +424,11 @@ if generate:
             prompt = write_prompt_from_saju(
                 base_text,
                 system_instruction=locked_system_prompt,
-                provider=locked_prompt_provider,
-                gemini_client=locked_gemini_client,
+                provider="openai",
+                gemini_client=None,
                 openai_client=locked_openai_client,
                 core_scene=core_scene,
-                openai_text_model=locked_openai_text_model,
+                openai_text_model="gpt-4.1-mini",
             )
         except Exception as exc:
             st.error(f"프롬프트 생성 중 오류가 발생했습니다: {exc}")
@@ -381,36 +440,58 @@ if generate:
 
     final_prompt = prompt
 
-    with st.spinner("🎨 이미지 생성 중..."):
+    with st.spinner("🎨 이미지 생성 중 (gpt-image-1 사용)..."):
         imgs = generate_images(
             final_prompt,
             num_images=1,
-            provider=locked_image_provider,
-            gemini_client=locked_gemini_client,
+            provider="openai",
+            gemini_client=None,
             openai_client=locked_openai_client,
         )
 
     valid = [i for i in imgs if i is not None]
-    if valid:
-        st.success(f"✅ 이미지 {len(valid)}장 생성 완료!")
-        st.markdown("### 생성 결과")
-        cols = st.columns(3)
-        for idx, im in enumerate(imgs):
-            if im is None: 
-                continue
-            with cols[idx % 3]:
-                st.image(im, caption=f"생성 이미지 #{idx+1}", use_container_width=True)
-                buf = BytesIO()
-                im.save(buf, format="PNG")
-                st.download_button(
-                    label=f"📥 다운로드 #{idx+1}",
-                    data=buf.getvalue(),
-                    file_name=f"saju_generated_{int(time.time())}_{idx+1}.png",
-                    mime="image/png",
-                    key=f"dl_{idx}"
-                )
-    else:
-        st.warning("이미지 생성 결과가 비어 있습니다. 텍스트를 더 구체적으로 수정해 다시 시도해주세요.")
+    if not valid:
+        st.error("이미지 생성에 실패했습니다.")
+        st.stop()
+
+    # 이미지 파일 저장
+    timestamp = int(time.time())
+    image_filename = f"saju_generated_{timestamp}.png"
+    image_path = os.path.join(RESULT_DIR, image_filename)
+
+    img = valid[0]
+    img.save(image_path, format="PNG")
+    st.success(f"✅ 이미지 생성 완료: {image_filename}")
+    st.image(img, caption="생성된 이미지", use_container_width=True)
+
+    # HTML 생성
+    with st.spinner("📄 HTML 생성 중..."):
+        html_content = generate_html(
+            user_name=user_name,
+            gender=gender,
+            solar_date=solar_date,
+            lunar_date=lunar_date,
+            birth_time=birth_time,
+            sections=sections,
+            image_filename=image_filename
+        )
+
+        html_filename = f"{user_name}_tojeung_{timestamp}.html"
+        html_path = os.path.join(RESULT_DIR, html_filename)
+
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+
+        st.success(f"✅ HTML 생성 완료!")
+        st.markdown(f"**파일 경로:** `{html_path}`")
+
+        # HTML 다운로드 버튼
+        st.download_button(
+            label="📥 HTML 다운로드",
+            data=html_content,
+            file_name=html_filename,
+            mime="text/html"
+        )
 
 if not generate:
     summary_display = st.session_state.get("core_scene_summary", "").strip()
