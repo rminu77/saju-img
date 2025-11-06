@@ -54,7 +54,8 @@ IMAGE_MODEL = "gemini-2.5-flash-image-preview"  # 이미지 생성 모델
 OPENAI_TEXT_MODEL = "gpt-4.1-mini"  # 장면 요약 모델
 OPENAI_IMAGE_MODEL = "gpt-image-1"
 OPENAI_IMAGE_SIZE = "1024x1024"
-RESULT_DIR = "/Users/mason/Documents/사주/result"
+# 현재 스크립트 위치 기준으로 result 디렉토리 설정
+RESULT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "result")
 DEFAULT_SYSTEM_INSTRUCTION = (
     "A mystical, hopeful scene rooted in Korean culture. "
     "Draw the characters in a way that highlights their personality, similar to Disney's Tangled and Encanto. "
@@ -238,9 +239,10 @@ def generate_images(
     return images
 
 def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
-                  birth_time: str, sections: dict, image_filename: str) -> str:
+                  birth_time: str, sections: dict, image_base64: str) -> str:
     """
     19개 섹션 내용을 받아서 HTML을 생성
+    image_base64: base64로 인코딩된 이미지 데이터
     """
     html = f"""<!DOCTYPE html>
 <html lang="ko">
@@ -281,7 +283,7 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                     그림으로 보는 새해운세
                 </h2>
                 <div class="flex justify-center">
-                    <img src="{image_filename}" alt="새해운세 이미지" class="rounded-lg shadow-lg max-w-full h-auto">
+                    <img src="data:image/png;base64,{image_base64}" alt="새해운세 이미지" class="rounded-lg shadow-lg max-w-full h-auto">
                 </div>
             </section>
 """
@@ -328,7 +330,10 @@ st.caption("19개 항목을 입력하면 이미지와 함께 HTML을 생성합�
 
 # result 디렉토리가 없으면 생성
 if not os.path.exists(RESULT_DIR):
-    os.makedirs(RESULT_DIR)
+    try:
+        os.makedirs(RESULT_DIR)
+    except Exception as e:
+        st.warning(f"result 디렉토리 생성 실패: {e}. 파일 저장은 건너뜁니다.")
 
 gemini_client = get_gemini_client()
 openai_client = get_openai_client()
@@ -454,15 +459,26 @@ if generate:
         st.error("이미지 생성에 실패했습니다.")
         st.stop()
 
-    # 이미지 파일 저장
+    # 이미지를 base64로 인코딩
+    img = valid[0]
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    img_base64 = base64.b64encode(buffered.getvalue()).decode()
+
+    st.success(f"✅ 이미지 생성 완료!")
+    st.image(img, caption="생성된 이미지", use_container_width=True)
+
+    # 이미지 파일도 저장 (로컬 백업용)
     timestamp = int(time.time())
     image_filename = f"saju_generated_{timestamp}.png"
-    image_path = os.path.join(RESULT_DIR, image_filename)
 
-    img = valid[0]
-    img.save(image_path, format="PNG")
-    st.success(f"✅ 이미지 생성 완료: {image_filename}")
-    st.image(img, caption="생성된 이미지", use_container_width=True)
+    # 파일 저장 시도 (실패해도 계속 진행)
+    try:
+        image_path = os.path.join(RESULT_DIR, image_filename)
+        img.save(image_path, format="PNG")
+        st.info(f"이미지 파일 저장: `{image_path}`")
+    except Exception as e:
+        st.warning(f"이미지 파일 저장 실패: {e} (HTML에는 이미지가 포함되어 있습니다)")
 
     # HTML 생성
     with st.spinner("📄 HTML 생성 중..."):
@@ -473,25 +489,42 @@ if generate:
             lunar_date=lunar_date,
             birth_time=birth_time,
             sections=sections,
-            image_filename=image_filename
+            image_base64=img_base64
         )
 
         html_filename = f"{user_name}_tojeung_{timestamp}.html"
-        html_path = os.path.join(RESULT_DIR, html_filename)
 
-        with open(html_path, "w", encoding="utf-8") as f:
-            f.write(html_content)
+        # 파일 저장 시도 (실패해도 계속 진행)
+        try:
+            html_path = os.path.join(RESULT_DIR, html_filename)
+            with open(html_path, "w", encoding="utf-8") as f:
+                f.write(html_content)
+            st.success(f"✅ HTML 생성 완료!")
+            st.markdown(f"**파일 경로:** `{html_path}`")
+        except Exception as e:
+            st.success(f"✅ HTML 생성 완료!")
+            st.warning(f"파일 저장 실패: {e} (다운로드 버튼을 사용하세요)")
 
-        st.success(f"✅ HTML 생성 완료!")
-        st.markdown(f"**파일 경로:** `{html_path}`")
+        col1, col2 = st.columns(2)
+        with col1:
+            # HTML 다운로드 버튼
+            st.download_button(
+                label="📥 HTML 다운로드",
+                data=html_content,
+                file_name=html_filename,
+                mime="text/html"
+            )
+        with col2:
+            # HTML 미리보기 버튼
+            if st.button("👁️ HTML 미리보기", type="secondary", use_container_width=True):
+                st.session_state.show_preview = True
 
-        # HTML 다운로드 버튼
-        st.download_button(
-            label="📥 HTML 다운로드",
-            data=html_content,
-            file_name=html_filename,
-            mime="text/html"
-        )
+        # HTML 미리보기 표시
+        if st.session_state.get("show_preview", False):
+            st.markdown("---")
+            st.markdown("### 📄 HTML 미리보기")
+            # iframe으로 HTML 내용 표시
+            st.components.v1.html(html_content, height=800, scrolling=True)
 
 if not generate:
     summary_display = st.session_state.get("core_scene_summary", "").strip()
