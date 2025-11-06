@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 import requests
 from typing import Optional
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 try:
     from openai import OpenAI
@@ -114,6 +115,42 @@ def get_openai_client():
         st.warning(f"OpenAI 클라이언트 초기화 실패: {e}")
         return None
 
+
+def convert_tone_to_dosa(
+    source_text: str,
+    user_name: str,
+    openai_client: Optional[OpenAI] = None,
+) -> str:
+    """
+    입력 텍스트의 말투를 도사 스타일로 변환
+    """
+    system_instruction = f"""당신은 도사 말투로 변환하는 전문가입니다.
+
+변환 규칙:
+- 반말만 사용
+- 밝고 유쾌하되 도사다운 무게와 신비감 유지
+- 시작구를 교차 사용: "어디보자…", "오호…", "옳거니!", "이거 참 묘하구나", "허허, 재밌네…"
+- 끝맺음: "~하네", "~이니라", "잊지 말게", "어떤가?"
+- 가끔 부채 이모지 🪭 사용
+- 사용자를 항상 "{user_name}"(으)로 부름
+- 내용은 절대 요약하지 말고 원문의 의미를 모두 살려서 말투만 변환
+- 원문의 구조와 문단을 그대로 유지"""
+
+    user_msg = f"""다음 텍스트를 도사 말투로 변환해주세요. 내용은 절대 줄이지 말고 말투만 바꿔주세요:
+
+{source_text}"""
+
+    if not openai_client:
+        raise ValueError("OpenAI 클라이언트가 초기화되지 않았습니다.")
+
+    completion = openai_client.chat.completions.create(
+        model="gpt-4.1-mini",
+        messages=[
+            {"role": "system", "content": system_instruction},
+            {"role": "user", "content": user_msg},
+        ]
+    )
+    return (completion.choices[0].message.content or "").strip()
 
 def summarize_for_visuals(
     source_text: str,
@@ -345,6 +382,12 @@ if not openai_available:
 
 if "core_scene_summary" not in st.session_state:
     st.session_state.core_scene_summary = ""
+if "generated_html" not in st.session_state:
+    st.session_state.generated_html = None
+if "generated_image" not in st.session_state:
+    st.session_state.generated_image = None
+if "html_filename" not in st.session_state:
+    st.session_state.html_filename = None
 
 # 사용자 정보 입력
 st.subheader("📋 기본 정보")
@@ -445,15 +488,46 @@ if generate:
 
     final_prompt = prompt
 
-    with st.spinner("🎨 이미지 생성 중 (gpt-image-1 사용)..."):
-        imgs = generate_images(
-            final_prompt,
-            num_images=1,
-            provider="openai",
-            gemini_client=None,
-            openai_client=locked_openai_client,
-        )
+    # 이미지 생성과 말투 변환을 병렬로 실행
+    with st.spinner("🎨 이미지 생성 및 🪭 말투 변환 중..."):
+        # 병렬 실행을 위한 함수들
+        def generate_image_task():
+            imgs = generate_images(
+                final_prompt,
+                num_images=1,
+                provider="openai",
+                gemini_client=None,
+                openai_client=locked_openai_client,
+            )
+            return imgs
 
+        def convert_tone_task():
+            converted = {}
+            for title, content in sections.items():
+                if content.strip():
+                    try:
+                        converted[title] = convert_tone_to_dosa(
+                            source_text=content,
+                            user_name=user_name,
+                            openai_client=locked_openai_client
+                        )
+                    except Exception as e:
+                        st.warning(f"'{title}' 말투 변환 실패: {e}, 원문 사용")
+                        converted[title] = content
+                else:
+                    converted[title] = content
+            return converted
+
+        # 병렬 실행
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            future_image = executor.submit(generate_image_task)
+            future_tone = executor.submit(convert_tone_task)
+
+            # 결과 수집
+            imgs = future_image.result()
+            converted_sections = future_tone.result()
+
+    # 이미지 처리
     valid = [i for i in imgs if i is not None]
     if not valid:
         st.error("이미지 생성에 실패했습니다.")
@@ -465,9 +539,6 @@ if generate:
     img.save(buffered, format="PNG")
     img_base64 = base64.b64encode(buffered.getvalue()).decode()
 
-    st.success(f"✅ 이미지 생성 완료!")
-    st.image(img, caption="생성된 이미지", use_container_width=True)
-
     # 이미지 파일도 저장 (로컬 백업용)
     timestamp = int(time.time())
     image_filename = f"saju_generated_{timestamp}.png"
@@ -476,9 +547,8 @@ if generate:
     try:
         image_path = os.path.join(RESULT_DIR, image_filename)
         img.save(image_path, format="PNG")
-        st.info(f"이미지 파일 저장: `{image_path}`")
     except Exception as e:
-        st.warning(f"이미지 파일 저장 실패: {e} (HTML에는 이미지가 포함되어 있습니다)")
+        pass  # 파일 저장 실패는 무시
 
     # HTML 생성
     with st.spinner("📄 HTML 생성 중..."):
@@ -488,7 +558,7 @@ if generate:
             solar_date=solar_date,
             lunar_date=lunar_date,
             birth_time=birth_time,
-            sections=sections,
+            sections=converted_sections,
             image_base64=img_base64
         )
 
@@ -499,32 +569,38 @@ if generate:
             html_path = os.path.join(RESULT_DIR, html_filename)
             with open(html_path, "w", encoding="utf-8") as f:
                 f.write(html_content)
-            st.success(f"✅ HTML 생성 완료!")
-            st.markdown(f"**파일 경로:** `{html_path}`")
         except Exception as e:
-            st.success(f"✅ HTML 생성 완료!")
-            st.warning(f"파일 저장 실패: {e} (다운로드 버튼을 사용하세요)")
+            pass  # 파일 저장 실패는 무시
 
-        col1, col2 = st.columns(2)
-        with col1:
-            # HTML 다운로드 버튼
-            st.download_button(
-                label="📥 HTML 다운로드",
-                data=html_content,
-                file_name=html_filename,
-                mime="text/html"
-            )
-        with col2:
-            # HTML 미리보기 버튼
-            if st.button("👁️ HTML 미리보기", type="secondary", use_container_width=True):
-                st.session_state.show_preview = True
+    # 세션 상태에 결과 저장
+    st.session_state.generated_html = html_content
+    st.session_state.generated_image = img
+    st.session_state.html_filename = html_filename
 
-        # HTML 미리보기 표시
-        if st.session_state.get("show_preview", False):
-            st.markdown("---")
-            st.markdown("### 📄 HTML 미리보기")
-            # iframe으로 HTML 내용 표시
-            st.components.v1.html(html_content, height=800, scrolling=True)
+    st.success(f"✅ 이미지 생성 및 말투 변환 완료!")
+
+# 결과물 표시 (세션 상태에서 가져옴)
+if st.session_state.generated_html is not None:
+    st.markdown("---")
+    st.markdown("### 🎨 생성 결과")
+
+    # 이미지 표시
+    if st.session_state.generated_image is not None:
+        st.image(st.session_state.generated_image, caption="생성된 이미지", use_container_width=True)
+
+    # HTML 다운로드 버튼
+    st.download_button(
+        label="📥 HTML 다운로드",
+        data=st.session_state.generated_html,
+        file_name=st.session_state.html_filename,
+        mime="text/html",
+        use_container_width=True
+    )
+
+    # HTML 미리보기 (항상 표시)
+    st.markdown("---")
+    st.markdown("### 📄 HTML 미리보기")
+    st.components.v1.html(st.session_state.generated_html, height=800, scrolling=True)
 
 if not generate:
     summary_display = st.session_state.get("core_scene_summary", "").strip()
