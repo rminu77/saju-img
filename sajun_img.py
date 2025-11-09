@@ -1,5 +1,5 @@
 # saju_image_app.py
-# pip install streamlit google-genai pillow python-dotenv
+# pip install streamlit google-genai pillow python-dotenv beautifulsoup4
 
 import streamlit as st
 from google import genai
@@ -18,6 +18,11 @@ try:
     from openai import OpenAI
 except ImportError:
     OpenAI = None
+
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None
 
 load_dotenv()
 
@@ -129,8 +134,7 @@ def convert_tone_to_dosa(
 변환 규칙:
 - 반말만 사용
 - 밝고 유쾌하되 도사다운 무게와 신비감 유지
-- 시작구를 교차 사용: "어디보자…", "오호…", "옳거니!", "이거 참 묘하구나", "허허, 재밌네…"
-- 끝맺음: "~하네", "~이니라", "잊지 말게", "어떤가?"
+- 다음과 같은 표현을 적절히 사용: "어디보자…", "오호…", "옳거니!", "이거 참 묘하구나", "허허, 재밌네…", "~하네", "~이니라", "잊지 말게", "어떤가?"
 - 가끔 부채 이모지 🪭 사용
 - 사용자를 항상 "{user_name}"(으)로 부름
 - 내용은 절대 요약하지 말고 원문의 의미를 모두 살려서 말투만 변환
@@ -159,6 +163,7 @@ def summarize_for_visuals(
     openai_client: Optional[OpenAI] = None,
     system_instruction: str = DEFAULT_SUMMARY_INSTRUCTION,
     openai_text_model: str = OPENAI_TEXT_MODEL,
+    gender: str = "여자",
 ) -> str:
     """
     사주 텍스트를 그림을 위한 1~2개의 핵심 문장으로 요약.
@@ -167,9 +172,13 @@ def summarize_for_visuals(
 [SAJU TEXT / Korean]
 {source_text}
 
+[GENDER]
+{gender}
+
 [REQUEST]
 - Summarize into one or two sentences highlighting visual motifs, elements, and atmosphere for illustration.
 - Keep it concrete and metaphorical, avoid fortune-telling claims.
+- The main character should be a {gender} ({"woman" if gender == "여자" else "man"}).
 """
     if provider == "openai":
         if not openai_client:
@@ -294,6 +303,7 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
+        /* 'Inter' 폰트를 기본으로 하되, 한글은 'Noto Sans KR'을 사용하도록 설정합니다. */
         body {{
             font-family: 'Inter', 'Noto Sans KR', sans-serif;
             -webkit-font-smoothing: antialiased;
@@ -303,13 +313,16 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
 </head>
 <body class="bg-gray-100 py-10 px-4">
 
+    <!-- 메인 콘텐츠 카드 -->
     <main class="max-w-3xl mx-auto bg-white shadow-2xl rounded-xl overflow-hidden">
         <div class="p-8 sm:p-12">
 
+            <!-- 제목 -->
             <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-4 text-center">
                 {user_name} 님의 토정비결
             </h1>
 
+            <!-- 사용자 정보 -->
             <p class="text-lg text-gray-600 mb-10 font-medium text-center">
                 <strong>[ {gender} ]</strong> 양력 {solar_date} {birth_time} / 음력 {lunar_date} {birth_time}
             </p>
@@ -325,33 +338,247 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
             </section>
 """
 
-    # 19개 섹션 추가
-    section_titles = [
-        "핵심포인트", "올해의총운", "일년신수(전반기)", "일년신수(후반기)",
-        "올해의연애운", "올해의건강운", "올해의직장운", "올해의소망운",
-        "올해의여행이사운", "월별운", "재물운의특성", "재물모으는법",
-        "재물손실막는법", "현재의재물운", "시기적운세", "대길",
-        "대흉", "현재의길흉사", "운명뛰어넘기"
-    ]
+    # 섹션별 색상 정의
+    section_colors = {
+        "핵심포인트": ("blue", "blue"),
+        "올해의총운": ("blue", "blue"),
+        "일년신수(전반기": ("blue", "blue"),
+        "일년신수(후반기": ("blue", "blue"),
+        "올해의연애운": ("pink", "pink"),
+        "올해의건강운": ("green", "green"),
+        "올해의직장운": ("purple", "purple"),
+        "올해의소망운": ("indigo", "indigo"),
+        "올해의여행이사운": ("teal", "teal"),
+        "월별운": ("orange", "orange"),
+        "재물운의특성": ("yellow", "yellow"),
+        "재물모으는법": ("yellow", "yellow"),
+        "재물손실막는법": ("yellow", "yellow"),
+        "현재의재물운": ("yellow", "yellow"),
+        "시기적운세": ("red", "red"),
+        "대길대흉": ("gray", "gray"),  # 대길대흉은 회색 테두리
+        "현재의길흉사": ("cyan", "cyan"),
+        "운명뛰어넘기": ("violet", "violet")
+    }
 
-    for title in section_titles:
-        content = sections.get(title, "").strip()
-        if content:
-            html += f"""
+    section_display_titles = {
+        "핵심포인트": "핵심포인트",
+        "올해의총운": "올해의 총운",
+        "일년신수(전반기": "일년신수(전반기)",
+        "일년신수(후반기": "일년신수(후반기)",
+        "올해의연애운": "올해의 연애운",
+        "올해의건강운": "올해의 건강운",
+        "올해의직장운": "올해의 직장운",
+        "올해의소망운": "올해의 소망운",
+        "올해의여행이사운": "올해의 여행·이사운",
+        "월별운": "월별운",
+        "재물운의특성": "재물운의 특성",
+        "재물모으는법": "재물 모으는 법",
+        "재물손실막는법": "재물 손실 막는 법",
+        "현재의재물운": "현재의 재물운",
+        "시기적운세": "시기적 운세",
+        "대길대흉": "대길대흉",  # 대길과 대흉을 하나의 섹션으로 통합
+        "현재의길흉사": "현재의 길흉사",
+        "운명뛰어넘기": "운명 뛰어넘기"
+    }
+
+    for key, display_title in section_display_titles.items():
+        # 대길과 대흉은 개별적으로 스킵 (대길대흉 섹션에서 처리)
+        if key in ["대길", "대흉"]:
+            continue
+
+        content = sections.get(key, "").strip()
+        # 대길대흉 섹션은 대길이나 대흉 중 하나라도 있으면 표시
+        if key == "대길대흉":
+            if not sections.get("대길", "").strip() and not sections.get("대흉", "").strip():
+                continue
+        elif not content:
+            continue
+
+        # 색상 가져오기
+        color = section_colors.get(key, ("blue", "blue"))
+
+        html += f"""
+            <!-- 섹션: {display_title} -->
             <section class="mb-10">
-                <h2 class="text-2xl font-semibold text-blue-700 border-b-2 border-blue-100 pb-3 mb-6">
-                    {title}
+                <h2 class="text-2xl font-semibold text-{color[0]}-700 border-b-2 border-{color[1]}-100 pb-3 mb-6">
+                    {display_title}
                 </h2>
-                <div class="space-y-4">
-                    <p class="text-base text-gray-700 leading-relaxed">
-                        {content.replace(chr(10), '<br>')}
-                    </p>
-                </div>
-            </section>
-"""
+                """
 
-    html += """
-        </div>
+        # 월별운은 특별 처리 (그리드 레이아웃)
+        if key == "월별운":
+            # 월별 정보 파싱
+            months = []
+            lines = content.split('\n')
+            current_month = None
+            current_text = []
+
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                # "01월", "1월" 등의 패턴 찾기
+                if line.endswith('월') and len(line) <= 4:
+                    # 이전 월 데이터 저장
+                    if current_month and current_text:
+                        months.append({'month': current_month, 'text': ' '.join(current_text)})
+                    current_month = line
+                    current_text = []
+                else:
+                    current_text.append(line)
+
+            # 마지막 월 저장
+            if current_month and current_text:
+                months.append({'month': current_month, 'text': ' '.join(current_text)})
+
+            # 그리드 레이아웃으로 출력
+            html += '                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">\n'
+            for month_data in months:
+                html += '                    <div class="bg-gray-50 p-4 rounded-lg">\n'
+                html += f'                        <h4 class="text-lg font-bold text-gray-800 mb-1">{month_data["month"]}</h4>\n'
+                html += f'                        <p class="text-base text-gray-700 leading-relaxed">{month_data["text"]}</p>\n'
+                html += '                    </div>\n'
+            html += '                </div>\n'
+        # 대길대흉 섹션 특별 처리
+        elif display_title == "대길대흉":
+            # 대길과 대흉 내용을 분리
+            daegil_content = sections.get("대길", "").strip()
+            daeheung_content = sections.get("대흉", "").strip()
+
+            # 대길 박스
+            if daegil_content:
+                html += '                <!-- 대길 -->\n'
+                html += '                <div class="mb-8 p-6 bg-blue-50 rounded-lg border border-blue-200">\n'
+                html += '                    <h3 class="text-2xl font-bold text-blue-800 mb-4">\n'
+                html += '                        대길 (大吉)\n'
+                html += '                    </h3>\n'
+                html += '                    <div class="space-y-4">\n'
+
+                # 대길 내용 파싱
+                paragraphs = [p.strip() for p in daegil_content.split('\n\n') if p.strip()]
+                for para in paragraphs:
+                    lines = [l.strip() for l in para.split('\n') if l.strip()]
+                    if len(lines) > 1 and len(lines[0]) < 100:
+                        # h4 제목 + 여러 p
+                        html += '                        <div>\n'
+                        html += f'                            <h4 class="text-lg font-semibold text-gray-700 mb-1">{lines[0]}</h4>\n'
+                        for i, line in enumerate(lines[1:]):
+                            if i == 0:
+                                html += f'                            <p class="text-base text-gray-700 leading-relaxed">{line}</p>\n'
+                            else:
+                                html += f'                            <p class="text-base text-gray-700 leading-relaxed mt-4">{line}</p>\n'
+                        html += '                        </div>\n'
+                    else:
+                        # p만
+                        for line in lines:
+                            html += f'                        <p class="text-base text-gray-700 leading-relaxed">{line}</p>\n'
+
+                html += '                    </div>\n'
+                html += '                </div>\n'
+                html += '\n'
+
+            # 대흉 박스
+            if daeheung_content:
+                html += '                <!-- 대흉 -->\n'
+                html += '                <div class="p-6 bg-red-50 rounded-lg border border-red-200">\n'
+                html += '                    <h3 class="text-2xl font-bold text-red-800 mb-4">\n'
+                html += '                        대흉 (大凶)\n'
+                html += '                    </h3>\n'
+                html += '                    <div class="space-y-4">\n'
+
+                # 대흉 내용 파싱
+                paragraphs = [p.strip() for p in daeheung_content.split('\n\n') if p.strip()]
+                for para in paragraphs:
+                    lines = [l.strip() for l in para.split('\n') if l.strip()]
+                    if len(lines) > 1 and len(lines[0]) < 100:
+                        # h4 제목 + 여러 p
+                        html += '                        <div>\n'
+                        html += f'                            <h4 class="text-lg font-semibold text-gray-700 mb-1">{lines[0]}</h4>\n'
+                        for i, line in enumerate(lines[1:]):
+                            if i == 0:
+                                html += f'                            <p class="text-base text-gray-700 leading-relaxed">{line}</p>\n'
+                            else:
+                                html += f'                            <p class="text-base text-gray-700 leading-relaxed mt-4">{line}</p>\n'
+                        html += '                        </div>\n'
+                    else:
+                        # p만
+                        for line in lines:
+                            html += f'                        <p class="text-base text-gray-700 leading-relaxed">{line}</p>\n'
+
+                html += '                    </div>\n'
+                html += '                </div>\n'
+        else:
+            # 일반 섹션 처리
+            # 내용을 줄바꿈으로 분리
+            paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
+
+            # 각 문단을 다시 줄바꿈으로 분리하여 제목과 내용 구분
+            formatted_blocks = []
+            for para in paragraphs:
+                lines = [l.strip() for l in para.split('\n') if l.strip()]
+                if len(lines) == 0:
+                    continue
+
+                # 첫 줄이 짧고 제목처럼 보이면 h3로 처리
+                if len(lines) > 1 and len(lines[0]) < 100:
+                    # h3 + 여러 p
+                    block = {
+                        'type': 'titled',
+                        'title': lines[0],
+                        'paragraphs': lines[1:]
+                    }
+                else:
+                    # p만
+                    block = {
+                        'type': 'plain',
+                        'paragraphs': lines
+                    }
+                formatted_blocks.append(block)
+
+            # 첫 블록이 titled면 space-y-6, 아니면 space-y-4
+            if formatted_blocks and formatted_blocks[0]['type'] == 'titled':
+                html += '                <div class="space-y-6">\n'
+                for block in formatted_blocks:
+                    if block['type'] == 'titled':
+                        html += '                    <div>\n'
+                        html += f'                        <h3 class="text-xl font-bold text-gray-700 mb-2">\n'
+                        html += f'                            {block["title"]}\n'
+                        html += f'                        </h3>\n'
+                        for i, para in enumerate(block['paragraphs']):
+                            if i == 0:
+                                html += f'                        <p class="text-base text-gray-700 leading-relaxed">\n'
+                            else:
+                                html += f'                        <p class="text-base text-gray-700 leading-relaxed mt-4">\n'
+                            html += f'                            {para}\n'
+                            html += f'                        </p>\n'
+                        html += '                    </div>\n'
+                    else:
+                        for para in block['paragraphs']:
+                            html += f'                    <p class="text-base text-gray-700 leading-relaxed">\n'
+                            html += f'                        {para}\n'
+                            html += f'                    </p>\n'
+                html += '                </div>\n'
+            else:
+                html += '                <div class="space-y-4 text-base text-gray-700 leading-relaxed">\n'
+                for block in formatted_blocks:
+                    if block['type'] == 'titled':
+                        html += f'                    <h3 class="text-xl font-bold text-gray-700 mb-2">\n'
+                        html += f'                        {block["title"]}\n'
+                        html += f'                    </h3>\n'
+                        for para in block['paragraphs']:
+                            html += f'                    <p>\n'
+                            html += f'                        {para}\n'
+                            html += f'                    </p>\n'
+                    else:
+                        for para in block['paragraphs']:
+                            html += f'                    <p>\n'
+                            html += f'                        {para}\n'
+                            html += f'                    </p>\n'
+                html += '                </div>\n'
+
+        html += '            </section>\n'
+
+    html += """        </div>
     </main>
 
 </body>
@@ -382,6 +609,8 @@ if not openai_available:
 
 if "core_scene_summary" not in st.session_state:
     st.session_state.core_scene_summary = ""
+if "chat_summary" not in st.session_state:
+    st.session_state.chat_summary = ""
 if "generated_html" not in st.session_state:
     st.session_state.generated_html = None
 if "generated_image" not in st.session_state:
@@ -391,30 +620,218 @@ if "html_filename" not in st.session_state:
 
 # 사용자 정보 입력
 st.subheader("📋 기본 정보")
-col1, col2 = st.columns(2)
-with col1:
-    user_name = st.text_input("이름", value="김영희")
-    gender = st.selectbox("성별", ["남자", "여자"])
-with col2:
-    solar_date = st.text_input("양력 생년월일", value="1988-08-09")
-    lunar_date = st.text_input("음력 생년월일", value="1988-06-27")
-    birth_time = st.text_input("시간", value="辰時")
+
+# 세션 상태에서 기본값 가져오기
+default_name = st.session_state.get('sample_name', '김영희')
+default_gender = st.session_state.get('sample_gender', '여자')
+default_birth_info = st.session_state.get('sample_birth_info', '양력 1988-08-09 辰時 / 음력 1988-06-27 辰時')
+
+# 성별의 인덱스 계산
+gender_options = ["남자", "여자"]
+default_gender_index = gender_options.index(default_gender) if default_gender in gender_options else 1
+
+user_name = st.text_input("이름", value=default_name, key="user_name_input")
+gender = st.selectbox("성별", gender_options, index=default_gender_index, key="gender_input")
+birth_info = st.text_input(
+    "생년월일 정보",
+    value=default_birth_info,
+    help="예시: 양력 1988-08-09 辰時 / 음력 1988-06-27 辰時",
+    key="birth_info_input"
+)
+
+# 입력된 생년월일 정보 파싱
+solar_date = ""
+lunar_date = ""
+birth_time = ""
+
+if birth_info:
+    try:
+        # "/" 기준으로 양력/음력 분리
+        parts = birth_info.split("/")
+        if len(parts) >= 2:
+            solar_part = parts[0].strip()
+            lunar_part = parts[1].strip()
+
+            # 양력 파싱: "양력 1988-08-09 辰時"
+            if "양력" in solar_part:
+                solar_info = solar_part.replace("양력", "").strip().split()
+                if len(solar_info) >= 1:
+                    solar_date = solar_info[0]
+                if len(solar_info) >= 2:
+                    birth_time = solar_info[1]
+
+            # 음력 파싱: "음력 1988-06-27 辰時"
+            if "음력" in lunar_part:
+                lunar_info = lunar_part.replace("음력", "").strip().split()
+                if len(lunar_info) >= 1:
+                    lunar_date = lunar_info[0]
+    except Exception as e:
+        st.warning(f"생년월일 정보 파싱 중 오류: {e}")
 
 st.markdown("---")
+
+# 샘플 데이터 로드 함수
+def load_sample_from_html(html_path: str) -> dict:
+    """HTML 파일에서 샘플 데이터를 추출"""
+    try:
+        with open(html_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html_content, 'html.parser')
+
+        sample_data = {
+            'name': '김영희',
+            'gender': '여자',
+            'birth_info': '양력 1988-08-09 辰時 / 음력 1988-06-27 辰時',
+            'sections': {}
+        }
+
+        # 섹션 매핑 (HTML의 섹션 제목 -> 입력창 키)
+        section_mapping = {
+            '핵심포인트': '핵심포인트(새해신수)',
+            '올해의 총운': '올해의총운(새해신수)',
+            '일년신수(전반기)': '일년신수(전반기)(토정비결)',
+            '일년신수(후반기)': '일년신수(후반기)(토정비결)',
+            '올해의 연애운': '올해의연애운(토정비결)',
+            '올해의 건강운': '올해의건강운(토정비결)',
+            '올해의 직장운': '올해의직장운(토정비결)',
+            '올해의 소망운': '올해의소망운(토정비결)',
+            '올해의 여행·이사운': '올해의여행이사운(새해신수)',
+            '월별운': '월별운(새해신수)',
+            '재물운의 특성': '재물운의특성(새해신수)',
+            '재물 모으는 법': '재물모으는법(새해신수)',
+            '재물 손실 막는 법': '재물손실막는법(새해신수)',
+            '현재의 재물운': '현재의재물운(새해신수)',
+            '시기적 운세': '시기적운세(새해신수)',
+            '현재의 길흉사': '현재의길흉사(새해신수)',
+            '현재의 길흉사운': '현재의길흉사(새해신수)',
+            '운명 뛰어넘기': '운명뛰어넘기(새해신수)'
+        }
+
+        # 모든 섹션 추출
+        sections = soup.find_all('section')
+        for section in sections:
+            h2 = section.find('h2')
+            if h2:
+                title = h2.get_text(strip=True)
+                if title == '그림으로 보는 새해운세':
+                    continue
+
+                # 대길대흉 섹션 특별 처리
+                if title == '대길대흉':
+                    # 대길 추출
+                    daegil_div = section.find('div', class_='bg-blue-50')
+                    if daegil_div:
+                        daegil_parts = []
+                        for elem in daegil_div.find_all(['h4', 'p']):
+                            if elem.name == 'h4':
+                                text = elem.get_text(strip=True)
+                                if text:
+                                    daegil_parts.append(f"\n{text}\n")
+                            elif elem.name == 'p':
+                                text = elem.get_text(strip=True)
+                                if text:
+                                    daegil_parts.append(text)
+                        daegil_content = '\n'.join(daegil_parts).strip()
+                        if daegil_content:
+                            sample_data['sections']['대길(새해신수)'] = daegil_content
+
+                    # 대흉 추출
+                    daeheung_div = section.find('div', class_='bg-red-50')
+                    if daeheung_div:
+                        daeheung_parts = []
+                        for elem in daeheung_div.find_all(['h4', 'p']):
+                            if elem.name == 'h4':
+                                text = elem.get_text(strip=True)
+                                if text:
+                                    daeheung_parts.append(f"\n{text}\n")
+                            elif elem.name == 'p':
+                                text = elem.get_text(strip=True)
+                                if text:
+                                    daeheung_parts.append(text)
+                        daeheung_content = '\n'.join(daeheung_parts).strip()
+                        if daeheung_content:
+                            sample_data['sections']['대흉(새해신수)'] = daeheung_content
+                    continue
+
+                # 월별운 특별 처리
+                if title == '월별운':
+                    month_divs = section.find_all('div', class_='bg-gray-50')
+                    month_parts = []
+                    for month_div in month_divs:
+                        h4 = month_div.find('h4')
+                        p = month_div.find('p')
+                        if h4 and p:
+                            month_title = h4.get_text(strip=True)
+                            month_text = p.get_text(strip=True)
+                            month_parts.append(f"{month_title}\n{month_text}")
+                    if month_parts:
+                        sample_data['sections']['월별운(새해신수)'] = '\n'.join(month_parts)
+                    continue
+
+                # 일반 섹션 처리
+                content_parts = []
+
+                # h3와 p 태그 찾기
+                for elem in section.find_all(['h3', 'p']):
+                    if elem.name == 'h3':
+                        text = elem.get_text(strip=True)
+                        if text:
+                            content_parts.append(f"\n{text}\n")
+                    elif elem.name == 'p':
+                        text = elem.get_text(strip=True)
+                        if text:
+                            content_parts.append(text)
+
+                content = '\n'.join(content_parts).strip()
+
+                # 매핑된 키로 저장
+                mapped_key = section_mapping.get(title, title)
+                if content:
+                    sample_data['sections'][mapped_key] = content
+
+        return sample_data
+    except Exception as e:
+        st.error(f"샘플 로드 실패: {e}")
+        return None
+
 st.subheader("📝 19개 항목 입력")
+
+# 샘플 넣기 버튼
+if st.button("📋 샘플 넣기", help="index.html의 내용으로 모든 입력창을 채웁니다"):
+    sample_path = "/Users/mason/Documents/사주/docs/index.html"
+    sample_data = load_sample_from_html(sample_path)
+
+    if sample_data:
+        # 세션 상태에 샘플 데이터 저장
+        st.session_state['sample_loaded'] = True
+        st.session_state['sample_name'] = sample_data['name']
+        st.session_state['sample_gender'] = sample_data['gender']
+        st.session_state['sample_birth_info'] = sample_data['birth_info']
+        st.session_state['sample_sections'] = sample_data['sections']
+        st.success("✅ 샘플 데이터를 불러왔습니다!")
+        st.rerun()
+
+# 샘플 데이터가 로드되었으면 기본 정보는 이미 위의 입력창에서 세션 상태로 반영됨
 
 # 19개 입력창
 sections = {}
 section_titles = [
-    "핵심포인트", "올해의총운", "일년신수(전반기)", "일년신수(후반기)",
-    "올해의연애운", "올해의건강운", "올해의직장운", "올해의소망운",
-    "올해의여행이사운", "월별운", "재물운의특성", "재물모으는법",
-    "재물손실막는법", "현재의재물운", "시기적운세", "대길",
-    "대흉", "현재의길흉사", "운명뛰어넘기"
+    "핵심포인트(새해신수)", "올해의총운(새해신수)", "일년신수(전반기)(토정비결)", "일년신수(후반기)(토정비결)",
+    "올해의연애운(토정비결)", "올해의건강운(토정비결)", "올해의직장운(토정비결)", "올해의소망운(토정비결)",
+    "올해의여행이사운(새해신수)", "월별운(새해신수)", "재물운의특성(새해신수)", "재물모으는법(새해신수)",
+    "재물손실막는법(새해신수)", "현재의재물운(새해신수)", "시기적운세(새해신수)", "대길(새해신수)",
+    "대흉(새해신수)", "현재의길흉사(새해신수)", "운명뛰어넘기(새해신수)"
 ]
 
 for title in section_titles:
-    sections[title] = st.text_area(title, height=100, key=title)
+    # 샘플 데이터가 있으면 사용
+    default_value = ""
+    if 'sample_sections' in st.session_state and title in st.session_state['sample_sections']:
+        default_value = st.session_state['sample_sections'][title]
+
+    sections[title] = st.text_area(title, value=default_value, height=100, key=title)
 
 system_prompt_input = st.text_area(
     "이미지 생성 시스템 프롬프트",
@@ -437,7 +854,7 @@ generate = st.button("🚀 HTML 생성", type="primary", use_container_width=Tru
 
 if generate:
     # "올해의총운" 텍스트로 이미지 생성
-    base_text = sections.get("올해의총운", "").strip()
+    base_text = sections.get("올해의총운(새해신수)", "").strip()
     if not base_text:
         st.error("'올해의총운'을 입력해주세요. 이 내용으로 이미지를 생성합니다.")
         st.stop()
@@ -456,6 +873,7 @@ if generate:
                 openai_client=locked_openai_client,
                 system_instruction=locked_summary_prompt,
                 openai_text_model="gpt-4.1-mini",
+                gender=gender,
             )
         except Exception as exc:
             st.error(f"핵심 장면 요약 생성 중 오류가 발생했습니다: {exc}")
@@ -466,6 +884,73 @@ if generate:
     if core_scene:
         st.markdown("#### ✨ 핵심 장면 요약")
         st.write(core_scene)
+
+    # 전체 내용 요약 생성 (채팅방용)
+    with st.spinner("📝 채팅방 요약 생성 중 (gpt-4.1-mini 사용)..."):
+        try:
+            # 모든 섹션 내용 합치기
+            all_content = []
+            for title, content in sections.items():
+                if content.strip():
+                    all_content.append(f"## {title}\n{content}")
+
+            full_text = "\n\n".join(all_content)
+
+            # 도사 스타일 요약 프롬프트
+            chat_summary_instruction = f"""당신은 도사 말투로 사주를 요약하는 전문가입니다.
+
+변환 규칙:
+- 반말만 사용
+- 밝고 유쾌하되 도사다운 무게와 신비감 유지
+- 다음과 같은 표현을 적절히 사용: "어디보자…", "오호…", "옳거니!", "이거 참 묘하구나", "허허, 재밌네…", "~하네", "~이니라", "잊지 말게", "어떤가?"
+- 가끔 부채 이모지 🪭 사용
+- 사용자를 항상 "{user_name}"(으)로 부름
+- 4500자 내외로 요약 (최대 5000자)
+- 핵심 내용을 빠짐없이 전달하되 도사스러운 표현으로 재구성
+- 구조화된 형식으로 작성 (문단 구분 명확히)"""
+
+            chat_summary_msg = f"""다음은 {user_name}의 사주 내용입니다. 이를 도사 말투로 4500자 내외로 요약해주세요:
+
+{full_text}
+
+[요구사항]
+- 도사 말투 사용
+- {user_name}을(를) 호칭으로 사용
+- 핵심 내용 포함: 총운, 연애운, 건강운, 직장운, 재물운, 월별운, 대길대흉 등
+- 4500자 내외 (최대 5000자)
+- 밝고 유쾌하면서도 무게감 있게"""
+
+            chat_summary = locked_openai_client.chat.completions.create(
+                model="gpt-4.1-mini",
+                messages=[
+                    {"role": "system", "content": chat_summary_instruction},
+                    {"role": "user", "content": chat_summary_msg},
+                ]
+            )
+            chat_summary_text = (chat_summary.choices[0].message.content or "").strip()
+            st.session_state["chat_summary"] = chat_summary_text
+
+            if chat_summary_text:
+                st.markdown("#### 💬 채팅방 요약")
+                # 채팅 UI 스타일로 표시
+                st.markdown(f"""
+                <div style="background-color: #f8f9fa; border-radius: 10px; padding: 20px; margin: 10px 0; border-left: 4px solid #4a90e2;">
+                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <span style="font-size: 24px; margin-right: 8px;">🪭</span>
+                        <span style="font-weight: bold; color: #4a90e2;">도사</span>
+                    </div>
+                    <div style="white-space: pre-wrap; line-height: 1.6; color: #333;">
+{chat_summary_text}
+                    </div>
+                    <div style="margin-top: 10px; font-size: 12px; color: #999;">
+                        📏 {len(chat_summary_text)}자
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+        except Exception as exc:
+            st.warning(f"채팅방 요약 생성 중 오류가 발생했습니다: {exc}")
+            st.session_state["chat_summary"] = ""
 
     with st.spinner("📝 프롬프트 작성 중..."):
         try:
@@ -488,44 +973,15 @@ if generate:
 
     final_prompt = prompt
 
-    # 이미지 생성과 말투 변환을 병렬로 실행
-    with st.spinner("🎨 이미지 생성 및 🪭 말투 변환 중..."):
-        # 병렬 실행을 위한 함수들
-        def generate_image_task():
-            imgs = generate_images(
-                final_prompt,
-                num_images=1,
-                provider="openai",
-                gemini_client=None,
-                openai_client=locked_openai_client,
-            )
-            return imgs
-
-        def convert_tone_task():
-            converted = {}
-            for title, content in sections.items():
-                if content.strip():
-                    try:
-                        converted[title] = convert_tone_to_dosa(
-                            source_text=content,
-                            user_name=user_name,
-                            openai_client=locked_openai_client
-                        )
-                    except Exception as e:
-                        st.warning(f"'{title}' 말투 변환 실패: {e}, 원문 사용")
-                        converted[title] = content
-                else:
-                    converted[title] = content
-            return converted
-
-        # 병렬 실행
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            future_image = executor.submit(generate_image_task)
-            future_tone = executor.submit(convert_tone_task)
-
-            # 결과 수집
-            imgs = future_image.result()
-            converted_sections = future_tone.result()
+    # 이미지 생성
+    with st.spinner("🎨 이미지 생성 중..."):
+        imgs = generate_images(
+            final_prompt,
+            num_images=1,
+            provider="openai",
+            gemini_client=None,
+            openai_client=locked_openai_client,
+        )
 
     # 이미지 처리
     valid = [i for i in imgs if i is not None]
@@ -550,15 +1006,22 @@ if generate:
     except Exception as e:
         pass  # 파일 저장 실패는 무시
 
-    # HTML 생성
+    # HTML 생성 - 섹션 키 매핑 (입력창 키 -> HTML 표시용 키)
     with st.spinner("📄 HTML 생성 중..."):
+        # 섹션 키를 HTML 생성 함수가 기대하는 형식으로 변환
+        mapped_sections = {}
+        for key, content in sections.items():
+            # "(새해신수)", "(토정비결)" 등을 제거하여 간단한 키로 변환
+            clean_key = key.replace("(새해신수)", "").replace("(토정비결)", "").replace(")", "")
+            mapped_sections[clean_key] = content
+
         html_content = generate_html(
             user_name=user_name,
             gender=gender,
             solar_date=solar_date,
             lunar_date=lunar_date,
             birth_time=birth_time,
-            sections=converted_sections,
+            sections=mapped_sections,
             image_base64=img_base64
         )
 
@@ -577,7 +1040,7 @@ if generate:
     st.session_state.generated_image = img
     st.session_state.html_filename = html_filename
 
-    st.success(f"✅ 이미지 생성 및 말투 변환 완료!")
+    st.success(f"✅ HTML 생성 완료!")
 
 # 결과물 표시 (세션 상태에서 가져옴)
 if st.session_state.generated_html is not None:
@@ -607,3 +1070,22 @@ if not generate:
     if summary_display:
         st.markdown("#### ✨ 핵심 장면 요약")
         st.write(summary_display)
+
+    chat_summary_display = st.session_state.get("chat_summary", "").strip()
+    if chat_summary_display:
+        st.markdown("#### 💬 채팅방 요약")
+        # 채팅 UI 스타일로 표시
+        st.markdown(f"""
+        <div style="background-color: #f8f9fa; border-radius: 10px; padding: 20px; margin: 10px 0; border-left: 4px solid #4a90e2;">
+            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                <span style="font-size: 24px; margin-right: 8px;">🪭</span>
+                <span style="font-weight: bold; color: #4a90e2;">도사</span>
+            </div>
+            <div style="white-space: pre-wrap; line-height: 1.6; color: #333;">
+{chat_summary_display}
+            </div>
+            <div style="margin-top: 10px; font-size: 12px; color: #999;">
+                📏 {len(chat_summary_display)}자
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
