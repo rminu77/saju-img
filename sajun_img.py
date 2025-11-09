@@ -885,8 +885,33 @@ if generate:
         st.markdown("#### ✨ 핵심 장면 요약")
         st.write(core_scene)
 
-    # 전체 내용 요약 생성 (채팅방용)
-    with st.spinner("📝 채팅방 요약 생성 중 (gpt-4.1-mini 사용)..."):
+    with st.spinner("📝 프롬프트 작성 중..."):
+        try:
+            prompt = write_prompt_from_saju(
+                base_text,
+                system_instruction=locked_system_prompt,
+                provider="openai",
+                gemini_client=None,
+                openai_client=locked_openai_client,
+                core_scene=core_scene,
+                openai_text_model="gpt-4.1-mini",
+            )
+        except Exception as exc:
+            st.error(f"프롬프트 생성 중 오류가 발생했습니다: {exc}")
+            st.stop()
+
+    if not prompt:
+        st.error("프롬프트 생성에 실패했습니다. 입력 내용을 다시 확인해주세요.")
+        st.stop()
+
+    final_prompt = prompt
+
+    # 화면을 반반 나눠서 표시할 컬럼 생성
+    col_left, col_right = st.columns(2)
+
+    # 병렬 실행을 위한 함수들
+    def generate_chat_summary_task():
+        """채팅방 요약 생성"""
         try:
             # 모든 섹션 내용 합치기
             all_content = []
@@ -927,55 +952,13 @@ if generate:
                     {"role": "user", "content": chat_summary_msg},
                 ]
             )
-            chat_summary_text = (chat_summary.choices[0].message.content or "").strip()
-            st.session_state["chat_summary"] = chat_summary_text
+            return (chat_summary.choices[0].message.content or "").strip()
+        except Exception as e:
+            return f"오류: {e}"
 
-            if chat_summary_text:
-                st.markdown("#### 💬 채팅방 요약")
-                # 채팅 UI 스타일로 표시
-                st.markdown(f"""
-                <div style="background-color: #f8f9fa; border-radius: 10px; padding: 20px; margin: 10px 0; border-left: 4px solid #4a90e2;">
-                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                        <span style="font-size: 24px; margin-right: 8px;">🪭</span>
-                        <span style="font-weight: bold; color: #4a90e2;">도사</span>
-                    </div>
-                    <div style="white-space: pre-wrap; line-height: 1.6; color: #333;">
-{chat_summary_text}
-                    </div>
-                    <div style="margin-top: 10px; font-size: 12px; color: #999;">
-                        📏 {len(chat_summary_text)}자
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-
-        except Exception as exc:
-            st.warning(f"채팅방 요약 생성 중 오류가 발생했습니다: {exc}")
-            st.session_state["chat_summary"] = ""
-
-    with st.spinner("📝 프롬프트 작성 중..."):
-        try:
-            prompt = write_prompt_from_saju(
-                base_text,
-                system_instruction=locked_system_prompt,
-                provider="openai",
-                gemini_client=None,
-                openai_client=locked_openai_client,
-                core_scene=core_scene,
-                openai_text_model="gpt-4.1-mini",
-            )
-        except Exception as exc:
-            st.error(f"프롬프트 생성 중 오류가 발생했습니다: {exc}")
-            st.stop()
-
-    if not prompt:
-        st.error("프롬프트 생성에 실패했습니다. 입력 내용을 다시 확인해주세요.")
-        st.stop()
-
-    final_prompt = prompt
-
-    # 이미지 생성
-    with st.spinner("🎨 이미지 생성 중..."):
-        imgs = generate_images(
+    def generate_image_task():
+        """이미지 생성"""
+        return generate_images(
             final_prompt,
             num_images=1,
             provider="openai",
@@ -983,11 +966,53 @@ if generate:
             openai_client=locked_openai_client,
         )
 
+    # 이미지 생성과 채팅방 요약을 병렬로 실행
+    with st.spinner("🎨 이미지 생성 및 💬 채팅방 요약 생성 중..."):
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            future_chat = executor.submit(generate_chat_summary_task)
+            future_image = executor.submit(generate_image_task)
+
+            # 결과 수집
+            chat_summary_text = future_chat.result()
+            imgs = future_image.result()
+
+    # 세션 상태에 채팅방 요약 저장
+    st.session_state["chat_summary"] = chat_summary_text
+
+    # 왼쪽: 채팅방 요약
+    with col_left:
+        st.markdown("#### 💬 채팅방 요약")
+        if chat_summary_text and not chat_summary_text.startswith("오류:"):
+            # 채팅 UI 스타일로 표시
+            st.markdown(f"""
+            <div style="background-color: #f8f9fa; border-radius: 10px; padding: 20px; margin: 10px 0; border-left: 4px solid #4a90e2;">
+                <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <span style="font-size: 24px; margin-right: 8px;">🪭</span>
+                    <span style="font-weight: bold; color: #4a90e2;">도사</span>
+                </div>
+                <div style="white-space: pre-wrap; line-height: 1.6; color: #333; max-height: 600px; overflow-y: auto;">
+{chat_summary_text}
+                </div>
+                <div style="margin-top: 10px; font-size: 12px; color: #999;">
+                    📏 {len(chat_summary_text)}자
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.warning(f"채팅방 요약 생성 실패: {chat_summary_text}")
+
     # 이미지 처리
     valid = [i for i in imgs if i is not None]
     if not valid:
-        st.error("이미지 생성에 실패했습니다.")
+        with col_right:
+            st.error("이미지 생성에 실패했습니다.")
         st.stop()
+
+    # 오른쪽: 이미지
+    with col_right:
+        st.markdown("#### 🎨 생성된 이미지")
+        img = valid[0]
+        st.image(img, caption="새해운세 이미지", use_container_width=True)
 
     # 이미지를 base64로 인코딩
     img = valid[0]
