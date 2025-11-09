@@ -86,6 +86,17 @@ DEFAULT_SUMMARY_INSTRUCTION = (
     "Create a description that an artist can immediately visualize and paint as a single, cohesive scene. "
     "Output the description in English as 1-2 sentences."
 )
+DEFAULT_CHAT_SUMMARY_INSTRUCTION = """당신은 도사 말투로 사주를 요약하는 전문가입니다.
+
+변환 규칙:
+- 반말만 사용
+- 밝고 유쾌하되 도사다운 무게와 신비감 유지
+- 다음과 같은 표현을 적절히 사용: "어디보자…", "오호…", "옳거니!", "이거 참 묘하구나", "허허, 재밌네…", "~하네", "~이니라", "잊지 말게", "어떤가?"
+- 가끔 부채 이모지 🪭 사용
+- 사용자를 항상 "{user_name}"(으)로 부름
+- 4500자 내외로 요약 (최대 5000자)
+- 핵심 내용을 빠짐없이 전달하되 도사스러운 표현으로 재구성
+- 구조화된 형식으로 작성 (문단 구분 명확히)"""
 
 # ----------------------------
 # 유틸
@@ -849,6 +860,14 @@ summary_prompt_input = st.text_area(
 )
 summary_prompt = summary_prompt_input if summary_prompt_input.strip() else DEFAULT_SUMMARY_INSTRUCTION
 
+chat_summary_prompt_input = st.text_area(
+    "채팅방 요약 시스템 프롬프트",
+    value=DEFAULT_CHAT_SUMMARY_INSTRUCTION,
+    height=150,
+    help="채팅방 요약 생성 모델에 전달할 시스템 메시지입니다. {user_name}은 자동으로 치환됩니다.",
+)
+chat_summary_prompt = chat_summary_prompt_input if chat_summary_prompt_input.strip() else DEFAULT_CHAT_SUMMARY_INSTRUCTION
+
 st.markdown("---")
 generate = st.button("🚀 HTML 생성", type="primary", use_container_width=True)
 
@@ -862,6 +881,7 @@ if generate:
     # 이미지 생성 시작 시점의 설정을 고정
     locked_system_prompt = system_prompt
     locked_summary_prompt = summary_prompt
+    locked_chat_summary_prompt = chat_summary_prompt
     locked_openai_client = openai_client
 
     with st.spinner("🔍 핵심 장면 추출 중 (gpt-4.1-mini 사용)..."):
@@ -921,18 +941,8 @@ if generate:
 
             full_text = "\n\n".join(all_content)
 
-            # 도사 스타일 요약 프롬프트
-            chat_summary_instruction = f"""당신은 도사 말투로 사주를 요약하는 전문가입니다.
-
-변환 규칙:
-- 반말만 사용
-- 밝고 유쾌하되 도사다운 무게와 신비감 유지
-- 다음과 같은 표현을 적절히 사용: "어디보자…", "오호…", "옳거니!", "이거 참 묘하구나", "허허, 재밌네…", "~하네", "~이니라", "잊지 말게", "어떤가?"
-- 가끔 부채 이모지 🪭 사용
-- 사용자를 항상 "{user_name}"(으)로 부름
-- 4500자 내외로 요약 (최대 5000자)
-- 핵심 내용을 빠짐없이 전달하되 도사스러운 표현으로 재구성
-- 구조화된 형식으로 작성 (문단 구분 명확히)"""
+            # 도사 스타일 요약 프롬프트 - {user_name} 치환
+            chat_summary_instruction = locked_chat_summary_prompt.format(user_name=user_name)
 
             chat_summary_msg = f"""다음은 {user_name}의 사주 내용입니다. 이를 도사 말투로 4500자 내외로 요약해주세요:
 
