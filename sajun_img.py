@@ -811,18 +811,24 @@ st.subheader("📝 19개 항목 입력")
 
 # 샘플 넣기 버튼
 if st.button("📋 샘플 넣기", help="index.html의 내용으로 모든 입력창을 채웁니다"):
-    sample_path = "/Users/mason/Documents/사주/docs/index.html"
-    sample_data = load_sample_from_html(sample_path)
+    # 현재 스크립트 위치 기준으로 docs/index.html 경로 설정
+    sample_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "index.html")
 
-    if sample_data:
-        # 세션 상태에 샘플 데이터 저장
-        st.session_state['sample_loaded'] = True
-        st.session_state['sample_name'] = sample_data['name']
-        st.session_state['sample_gender'] = sample_data['gender']
-        st.session_state['sample_birth_info'] = sample_data['birth_info']
-        st.session_state['sample_sections'] = sample_data['sections']
-        st.success("✅ 샘플 데이터를 불러왔습니다!")
-        st.rerun()
+    if not os.path.exists(sample_path):
+        st.error(f"⚠️ 샘플 파일을 찾을 수 없습니다: {sample_path}")
+        st.info("💡 docs/index.html 파일이 프로젝트에 포함되어 있는지 확인해주세요.")
+    else:
+        sample_data = load_sample_from_html(sample_path)
+
+        if sample_data:
+            # 세션 상태에 샘플 데이터 저장
+            st.session_state['sample_loaded'] = True
+            st.session_state['sample_name'] = sample_data['name']
+            st.session_state['sample_gender'] = sample_data['gender']
+            st.session_state['sample_birth_info'] = sample_data['birth_info']
+            st.session_state['sample_sections'] = sample_data['sections']
+            st.success("✅ 샘플 데이터를 불러왔습니다!")
+            st.rerun()
 
 # 샘플 데이터가 로드되었으면 기본 정보는 이미 위의 입력창에서 세션 상태로 반영됨
 
