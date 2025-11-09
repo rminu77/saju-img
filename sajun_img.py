@@ -1072,10 +1072,6 @@ if st.session_state.generated_html is not None:
     st.markdown("---")
     st.markdown("### 🎨 생성 결과")
 
-    # 이미지 표시
-    if st.session_state.generated_image is not None:
-        st.image(st.session_state.generated_image, caption="생성된 이미지", use_container_width=True)
-
     # HTML 다운로드 버튼
     st.download_button(
         label="📥 HTML 다운로드",
