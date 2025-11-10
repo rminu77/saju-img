@@ -1064,18 +1064,24 @@ if generate_summary:
             # 요약 표시
             st.markdown("#### 💬 채팅방 요약")
             if chat_summary_text:
-                # 채팅 UI 스타일로 표시
+                # 말풍선 UI 스타일로 표시
                 st.markdown(f"""
-                <div style="background-color: #f8f9fa; border-radius: 10px; padding: 20px; margin: 10px 0; border-left: 4px solid #4a90e2;">
-                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                        <span style="font-size: 24px; margin-right: 8px;">🪭</span>
-                        <span style="font-weight: bold; color: #4a90e2;">도사</span>
+                <div style="display: flex; align-items: flex-start; margin: 20px 0;">
+                    <div style="flex-shrink: 0; margin-right: 12px;">
+                        <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                            🪭
+                        </div>
                     </div>
-                    <div style="white-space: pre-wrap; line-height: 1.6; color: #333; max-height: 600px; overflow-y: auto;">
+                    <div style="flex-grow: 1; max-width: 85%;">
+                        <div style="background-color: #f8f9fa; border-radius: 18px; padding: 16px 20px; position: relative; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                            <div style="font-weight: 600; color: #667eea; margin-bottom: 8px; font-size: 14px;">도사</div>
+                            <div style="white-space: pre-wrap; line-height: 1.7; color: #2c3e50; font-size: 15px; max-height: 600px; overflow-y: auto;">
 {chat_summary_text}
-                    </div>
-                    <div style="margin-top: 10px; font-size: 12px; color: #999;">
-                        📏 {len(chat_summary_text)}자
+                            </div>
+                            <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #e0e0e0; font-size: 11px; color: #999;">
+                                📏 {len(chat_summary_text)}자
+                            </div>
+                        </div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1113,18 +1119,24 @@ if not generate and not generate_summary:
     chat_summary_display = st.session_state.get("chat_summary", "").strip()
     if chat_summary_display:
         st.markdown("#### 💬 채팅방 요약 (이전 생성 결과)")
-        # 채팅 UI 스타일로 표시
+        # 말풍선 UI 스타일로 표시
         st.markdown(f"""
-        <div style="background-color: #f8f9fa; border-radius: 10px; padding: 20px; margin: 10px 0; border-left: 4px solid #4a90e2;">
-            <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                <span style="font-size: 24px; margin-right: 8px;">🪭</span>
-                <span style="font-weight: bold; color: #4a90e2;">도사</span>
+        <div style="display: flex; align-items: flex-start; margin: 20px 0;">
+            <div style="flex-shrink: 0; margin-right: 12px;">
+                <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                    🪭
+                </div>
             </div>
-            <div style="white-space: pre-wrap; line-height: 1.6; color: #333;">
+            <div style="flex-grow: 1; max-width: 85%;">
+                <div style="background-color: #f8f9fa; border-radius: 18px; padding: 16px 20px; position: relative; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                    <div style="font-weight: 600; color: #667eea; margin-bottom: 8px; font-size: 14px;">도사</div>
+                    <div style="white-space: pre-wrap; line-height: 1.7; color: #2c3e50; font-size: 15px; max-height: 600px; overflow-y: auto;">
 {chat_summary_display}
-            </div>
-            <div style="margin-top: 10px; font-size: 12px; color: #999;">
-                📏 {len(chat_summary_display)}자
+                    </div>
+                    <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #e0e0e0; font-size: 11px; color: #999;">
+                        📏 {len(chat_summary_display)}자
+                    </div>
+                </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
