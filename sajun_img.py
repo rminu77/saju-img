@@ -845,73 +845,62 @@ uploaded_csv = st.file_uploader(
 )
 
 if uploaded_csv is not None:
-    try:
-        import pandas as pd
-        import io
+    # 무한 루프 방지: 파일 이름으로 이미 처리했는지 확인
+    csv_file_id = f"{uploaded_csv.name}_{uploaded_csv.size}"
 
-        # CSV 파일 읽기
-        df = pd.read_csv(io.StringIO(uploaded_csv.getvalue().decode('utf-8')))
+    if st.session_state.get('last_processed_csv') != csv_file_id:
+        try:
+            import pandas as pd
+            import io
 
-        # 필수 컬럼 확인
-        required_cols = ['항목', '내용']
-        if not all(col in df.columns for col in required_cols):
-            st.error(f"⚠️ CSV 파일에 필수 컬럼이 없습니다: {required_cols}")
-        else:
-            # 데이터 추출
-            sample_data = {'sections': {}}
+            # CSV 파일 읽기
+            df = pd.read_csv(io.StringIO(uploaded_csv.getvalue().decode('utf-8')))
 
-            for _, row in df.iterrows():
-                item = str(row['항목']).strip()
-                content = str(row['내용']).strip()
+            # 필수 컬럼 확인
+            required_cols = ['항목', '내용']
+            if not all(col in df.columns for col in required_cols):
+                st.error(f"⚠️ CSV 파일에 필수 컬럼이 없습니다: {required_cols}")
+            else:
+                # 데이터 추출
+                sample_data = {'sections': {}}
 
-                if item == '이름':
-                    sample_data['name'] = content
-                elif item == '성별':
-                    sample_data['gender'] = content
-                elif item == '생년월일':
-                    sample_data['birth_info'] = content
-                else:
-                    # 섹션 데이터
-                    sample_data['sections'][item] = content
+                for _, row in df.iterrows():
+                    item = str(row['항목']).strip()
+                    content = str(row['내용']).strip()
 
-            # 디버깅: 로드된 데이터 확인
-            st.info(f"📊 로드된 데이터: 이름={sample_data.get('name')}, 성별={sample_data.get('gender')}, 섹션 수={len(sample_data.get('sections', {}))}")
+                    if item == '이름':
+                        sample_data['name'] = content
+                    elif item == '성별':
+                        sample_data['gender'] = content
+                    elif item == '생년월일':
+                        sample_data['birth_info'] = content
+                    else:
+                        # 섹션 데이터
+                        sample_data['sections'][item] = content
 
-            # 섹션 이름 출력
-            if sample_data.get('sections'):
-                st.write("📋 CSV에서 로드된 섹션 이름들:")
-                for idx, key in enumerate(list(sample_data['sections'].keys())[:5], 1):
-                    st.write(f"  {idx}. '{key}' (길이: {len(sample_data['sections'][key])} 문자)")
+                # 세션 상태에 저장 (위젯 key에 맞춰서)
+                if 'name' in sample_data:
+                    st.session_state['user_name_input'] = sample_data['name']
+                if 'gender' in sample_data:
+                    st.session_state['gender_input'] = sample_data['gender']
+                if 'birth_info' in sample_data:
+                    st.session_state['birth_info_input'] = sample_data['birth_info']
+                if sample_data.get('sections'):
+                    # 각 섹션의 text_area key에 직접 값 설정
+                    for section_key, section_value in sample_data['sections'].items():
+                        st.session_state[section_key] = section_value
 
-            # 세션 상태에 저장 (위젯 key에 맞춰서)
-            if 'name' in sample_data:
-                st.session_state['user_name_input'] = sample_data['name']
-                st.write(f"✓ 이름 설정: {sample_data['name']}")
-            if 'gender' in sample_data:
-                st.session_state['gender_input'] = sample_data['gender']
-                st.write(f"✓ 성별 설정: {sample_data['gender']}")
-            if 'birth_info' in sample_data:
-                st.session_state['birth_info_input'] = sample_data['birth_info']
-                st.write(f"✓ 생년월일 설정: {sample_data['birth_info']}")
-            if sample_data.get('sections'):
-                # 각 섹션의 text_area key에 직접 값 설정
-                section_count = 0
-                for section_key, section_value in sample_data['sections'].items():
-                    st.session_state[section_key] = section_value
-                    section_count += 1
-                    if section_count <= 3:
-                        st.write(f"  • '{section_key}' → 세션 상태 설정 완료")
-                st.write(f"✓ 총 {section_count}개 섹션 데이터 설정 완료")
+                # 처리 완료 표시
+                st.session_state['last_processed_csv'] = csv_file_id
 
-            st.success("✅ CSV 파일에서 데이터를 불러왔습니다!")
-            st.warning("🔄 3초 후 페이지를 새로고침하여 데이터를 표시합니다...")
-            import time
-            time.sleep(3)
-            st.rerun()
+                st.success(f"✅ CSV 파일에서 데이터를 불러왔습니다! (이름: {sample_data.get('name')}, 섹션: {len(sample_data.get('sections', {}))}개)")
+                st.rerun()
 
-    except Exception as e:
-        st.error(f"⚠️ CSV 파일 읽기 실패: {e}")
-        st.info("💡 CSV 파일 형식을 확인해주세요. 첫 행은 '항목,내용' 헤더여야 합니다.")
+        except Exception as e:
+            st.error(f"⚠️ CSV 파일 읽기 실패: {e}")
+            st.info("💡 CSV 파일 형식을 확인해주세요. 첫 행은 '항목,내용' 헤더여야 합니다.")
+    else:
+        st.info("✅ CSV 데이터가 이미 로드되었습니다. 아래 입력창에서 확인하세요.")
 
 st.markdown("---")
 
