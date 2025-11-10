@@ -349,9 +349,12 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
             background-color: white;
             border-bottom: 1px solid #e5e7eb;
         }}
-        /* 앵커 링크 오프셋 - 이전 섹션 끝부분이 보이도록 조정 */
-        section {{
-            scroll-margin-top: 140px;
+        /* 앵커 포인트 스타일 - 이전 컨텐츠가 끝나는 위치 */
+        .anchor-point {{
+            display: block;
+            position: relative;
+            top: -160px;
+            visibility: hidden;
         }}
     </style>
 </head>
@@ -460,8 +463,11 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
         if section_keys == ["__image__"]:
             section_id = display_title.replace(" ", "-")
             html += f"""
+            <!-- 앵커 포인트 -->
+            <span id="section-{section_id}" class="anchor-point"></span>
+
             <!-- 섹션: 그림 -->
-            <section id="section-{section_id}" class="mb-10">
+            <section class="mb-10">
                 <p class="text-center text-lg font-bold text-gray-800 mb-6">
                     {user_name} 님의 신년운세를 그림으로 그려봤어요.
                 </p>
@@ -490,8 +496,11 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
         section_id = display_title.replace(" ", "-")
 
         html += f"""
+            <!-- 앵커 포인트 -->
+            <span id="section-{section_id}" class="anchor-point"></span>
+
             <!-- 섹션: {display_title} -->
-            <section id="section-{section_id}" class="mb-10">
+            <section class="mb-10">
                 <h2 class="text-2xl font-semibold text-{color}-700 border-b-2 border-{color}-100 pb-3 mb-6">
                     {display_title}
                 </h2>
