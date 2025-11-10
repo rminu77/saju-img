@@ -351,7 +351,7 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
         }}
         /* 스크롤 시 sticky 헤더 아래 여백 */
         html {{
-            scroll-padding-top: 220px;
+            scroll-padding-top: 210px;
         }}
         /* 앵커 포인트 스타일 - 타이틀 1픽셀 상단 */
         .anchor-point {{
