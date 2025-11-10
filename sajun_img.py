@@ -877,6 +877,12 @@ if uploaded_csv is not None:
             # 디버깅: 로드된 데이터 확인
             st.info(f"📊 로드된 데이터: 이름={sample_data.get('name')}, 성별={sample_data.get('gender')}, 섹션 수={len(sample_data.get('sections', {}))}")
 
+            # 섹션 이름 출력
+            if sample_data.get('sections'):
+                st.write("📋 CSV에서 로드된 섹션 이름들:")
+                for idx, key in enumerate(list(sample_data['sections'].keys())[:5], 1):
+                    st.write(f"  {idx}. '{key}' (길이: {len(sample_data['sections'][key])} 문자)")
+
             # 세션 상태에 저장 (위젯 key에 맞춰서)
             if 'name' in sample_data:
                 st.session_state['user_name_input'] = sample_data['name']
@@ -893,7 +899,9 @@ if uploaded_csv is not None:
                 for section_key, section_value in sample_data['sections'].items():
                     st.session_state[section_key] = section_value
                     section_count += 1
-                st.write(f"✓ {section_count}개 섹션 데이터 설정 완료")
+                    if section_count <= 3:
+                        st.write(f"  • '{section_key}' → 세션 상태 설정 완료")
+                st.write(f"✓ 총 {section_count}개 섹션 데이터 설정 완료")
 
             st.success("✅ CSV 파일에서 데이터를 불러왔습니다!")
             st.warning("🔄 3초 후 페이지를 새로고침하여 데이터를 표시합니다...")
@@ -1218,6 +1226,14 @@ section_titles = [
     "재물손실막는법(새해신수)", "현재의재물운(새해신수)", "시기적운세(새해신수)", "대길(새해신수)",
     "대흉(새해신수)", "현재의길흉사(새해신수)", "운명뛰어넘기(새해신수)"
 ]
+
+# 디버깅: 세션 상태 확인
+debug_sections = [key for key in section_titles if key in st.session_state and st.session_state[key]]
+if debug_sections:
+    st.info(f"🔍 세션 상태에 데이터가 있는 섹션: {len(debug_sections)}개")
+    with st.expander("세션 상태 디버그 정보"):
+        for key in debug_sections[:3]:
+            st.write(f"• {key}: {len(st.session_state[key])} 문자")
 
 # 19개 입력창
 sections = {}
