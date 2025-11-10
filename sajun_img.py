@@ -351,7 +351,7 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
         }}
         /* 스크롤 시 sticky 헤더 아래 여백 */
         html {{
-            scroll-padding-top: 150px;
+            scroll-padding-top: 220px;
         }}
         /* 앵커 포인트 스타일 - 타이틀 1픽셀 상단 */
         .anchor-point {{
@@ -368,7 +368,7 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
     <main class="max-w-3xl mx-auto bg-white shadow-2xl rounded-xl">
         <!-- 고정 헤더 영역 -->
         <div class="sticky-header rounded-t-xl">
-            <div class="p-8 sm:p-12 pb-1">
+            <div class="p-6 sm:p-8 pb-0">
                 <!-- 제목 -->
                 <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-4 text-center">
                     {user_name} 님의 신년운세
