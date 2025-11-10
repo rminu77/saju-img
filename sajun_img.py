@@ -29,26 +29,9 @@ load_dotenv()
 st.set_page_config(page_title="사주 → HTML 생성기", page_icon="🧧", layout="wide")
 
 # ----------------------------
-# 로그인 체크
+# 로그인 체크 (비활성화)
 # ----------------------------
-def check_login():
-    if "logged_in" not in st.session_state:
-        st.session_state.logged_in = False
-
-    if not st.session_state.logged_in:
-        st.title("🔐 로그인")
-        st.text_input("ID")
-        password = st.text_input("PW", type="password")
-
-        if st.button("로그인"):
-            if password == "mateplan":
-                st.session_state.logged_in = True
-                st.rerun()
-            else:
-                st.error("비밀번호가 올바르지 않습니다.")
-        st.stop()
-
-check_login()
+# 로그인 과정 제거됨
 
 # ----------------------------
 # 설정
@@ -131,6 +114,42 @@ def get_openai_client():
         st.warning(f"OpenAI 클라이언트 초기화 실패: {e}")
         return None
 
+
+def summarize_to_three_lines(
+    source_text: str,
+    openai_client: Optional[OpenAI] = None,
+) -> str:
+    """
+    텍스트를 3줄로 요약
+    """
+    system_instruction = """당신은 사주 내용을 간결하게 요약하는 전문가입니다.
+
+요약 규칙:
+- 정확히 3줄로 요약
+- 각 줄은 핵심 포인트 하나씩
+- 간결하고 명확하게
+- 이모지 사용 금지"""
+
+    user_msg = f"""다음 총운 내용을 정확히 3줄로 요약해주세요:
+
+{source_text}
+
+[요구사항]
+- 3줄로 요약
+- 각 줄은 한 문장
+- 핵심 메시지만 전달"""
+
+    if not openai_client:
+        raise ValueError("OpenAI 클라이언트가 초기화되지 않았습니다.")
+
+    completion = openai_client.chat.completions.create(
+        model="gpt-4.1-mini",
+        messages=[
+            {"role": "system", "content": system_instruction},
+            {"role": "user", "content": user_msg},
+        ]
+    )
+    return (completion.choices[0].message.content or "").strip()
 
 def convert_tone_to_dosa(
     source_text: str,
@@ -296,10 +315,12 @@ def generate_images(
     return images
 
 def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
-                  birth_time: str, sections: dict, image_base64: str) -> str:
+                  birth_time: str, sections: dict, image_base64: str,
+                  chongun_summary: str = "") -> str:
     """
     19개 섹션 내용을 받아서 HTML을 생성
     image_base64: base64로 인코딩된 이미지 데이터
+    chongun_summary: 총운 3줄 요약
     """
     html = f"""<!DOCTYPE html>
 <html lang="ko">
@@ -320,14 +341,22 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }}
+        /* Sticky 헤더가 메인 카드의 border-radius를 넘어가지 않도록 */
+        .sticky-header {{
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background-color: white;
+            border-bottom: 1px solid #e5e7eb;
+        }}
     </style>
 </head>
 <body class="bg-gray-100 py-10 px-4">
 
     <!-- 메인 콘텐츠 카드 -->
-    <main class="max-w-3xl mx-auto bg-white shadow-2xl rounded-xl overflow-hidden">
+    <main class="max-w-3xl mx-auto bg-white shadow-2xl rounded-xl">
         <!-- 고정 헤더 영역 -->
-        <div class="sticky top-0 z-50 bg-white border-b border-gray-200">
+        <div class="sticky-header rounded-t-xl">
             <div class="p-8 sm:p-12 pb-4">
                 <!-- 제목 -->
                 <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-4 text-center">
@@ -427,11 +456,11 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
         if section_keys == ["__image__"]:
             section_id = display_title.replace(" ", "-")
             html += f"""
-            <!-- 섹션: {display_title} -->
+            <!-- 섹션: 그림 -->
             <section id="section-{section_id}" class="mb-10">
-                <h2 class="text-2xl font-semibold text-{color}-700 border-b-2 border-{color}-100 pb-3 mb-6">
-                    {display_title}
-                </h2>
+                <p class="text-center text-lg font-bold text-gray-800 mb-6">
+                    {user_name} 님의 신년운세를 그림으로 그려봤어요.
+                </p>
                 <div class="flex justify-center">
                     <img src="data:image/png;base64,{image_base64}" alt="새해운세 이미지" class="rounded-lg shadow-lg max-w-full h-auto">
                 </div>
@@ -463,6 +492,17 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                     {display_title}
                 </h2>
                 """
+
+        # 총운 섹션 특별 처리 (3줄 요약 박스 추가)
+        if display_title == "총운" and chongun_summary:
+            html += f"""
+                <!-- 총운 3줄 요약 -->
+                <div class="mb-6 p-5 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
+                    <div class="text-base text-gray-800 leading-relaxed whitespace-pre-line">
+{chongun_summary}
+                    </div>
+                </div>
+"""
 
         # 월별운세는 특별 처리 (그리드 레이아웃)
         if display_title == "월별운세":
@@ -1110,6 +1150,9 @@ with col2:
     generate_summary = st.button("💬 채팅방 요약", use_container_width=True)
 
 if generate:
+    # 시작 시간 기록
+    start_time = time.time()
+
     # "올해의총운" 텍스트로 이미지 생성
     base_text = sections.get("올해의총운(새해신수)", "").strip()
     if not base_text:
@@ -1142,6 +1185,18 @@ if generate:
     if core_scene:
         st.markdown("#### ✨ 핵심 장면 요약")
         st.write(core_scene)
+
+    # 총운 3줄 요약 생성
+    with st.spinner("📋 총운 요약 생성 중 (gpt-4.1-mini 사용)..."):
+        try:
+            chongun_text = sections.get("핵심포인트(새해신수)", "").strip() + "\n\n" + sections.get("올해의총운(새해신수)", "").strip()
+            chongun_summary = summarize_to_three_lines(
+                chongun_text,
+                openai_client=locked_openai_client
+            )
+        except Exception as exc:
+            st.warning(f"총운 요약 생성 중 오류: {exc}")
+            chongun_summary = ""
 
     with st.spinner("📝 프롬프트 작성 중..."):
         try:
@@ -1218,7 +1273,8 @@ if generate:
             lunar_date=lunar_date,
             birth_time=birth_time,
             sections=mapped_sections,
-            image_base64=img_base64
+            image_base64=img_base64,
+            chongun_summary=chongun_summary
         )
 
         html_filename = f"{user_name}_tojeung_{timestamp}.html"
@@ -1236,10 +1292,17 @@ if generate:
     st.session_state.generated_image = img
     st.session_state.html_filename = html_filename
 
-    st.success(f"✅ HTML 생성 완료!")
+    # 종료 시간 계산
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+
+    st.success(f"✅ HTML 생성 완료! (소요 시간: {elapsed_time:.1f}초)")
 
 # 채팅방 요약 버튼 클릭 시
 if generate_summary:
+    # 시작 시간 기록
+    summary_start_time = time.time()
+
     # 모든 섹션 내용 합치기
     all_content = []
     for title, content in sections.items():
@@ -1308,7 +1371,12 @@ if generate_summary:
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
-                st.success("✅ 채팅방 요약 생성 완료!")
+
+                # 종료 시간 계산
+                summary_end_time = time.time()
+                summary_elapsed_time = summary_end_time - summary_start_time
+
+                st.success(f"✅ 채팅방 요약 생성 완료! (소요 시간: {summary_elapsed_time:.1f}초)")
             else:
                 st.warning("채팅방 요약 생성에 실패했습니다.")
         except Exception as exc:
