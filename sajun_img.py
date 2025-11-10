@@ -681,6 +681,54 @@ if birth_info:
 
 st.markdown("---")
 
+# 샘플 데이터 저장 함수
+def save_sample_to_html(name: str, gender: str, birth_info: str, sections: dict) -> bool:
+    """현재 입력된 데이터를 docs/index.html에 저장"""
+    try:
+        import time
+
+        # 생년월일 정보 파싱
+        solar_date = ""
+        lunar_date = ""
+        birth_time = ""
+
+        if birth_info:
+            parts = birth_info.split("/")
+            if len(parts) >= 2:
+                solar_part = parts[0].strip()
+                lunar_part = parts[1].strip()
+
+                if "양력" in solar_part:
+                    solar_info = solar_part.replace("양력", "").strip().split()
+                    if len(solar_info) >= 1:
+                        solar_date = solar_info[0]
+                    if len(solar_info) >= 2:
+                        birth_time = solar_info[1]
+
+                if "음력" in lunar_part:
+                    lunar_info = lunar_part.replace("음력", "").strip().split()
+                    if len(lunar_info) >= 1:
+                        lunar_date = lunar_info[0]
+
+        # 더미 이미지 base64 (1x1 투명 PNG)
+        dummy_image_base64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+
+        # HTML 생성 (generate_html 함수 재사용)
+        html_content = generate_html(name, gender, solar_date, lunar_date, birth_time, sections, dummy_image_base64)
+
+        # docs/index.html에 저장
+        docs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs")
+        os.makedirs(docs_dir, exist_ok=True)
+
+        sample_path = os.path.join(docs_dir, "index.html")
+        with open(sample_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+
+        return True
+    except Exception as e:
+        st.error(f"샘플 저장 실패: {e}")
+        return False
+
 # 샘플 데이터 로드 함수
 def load_sample_from_html(html_path: str) -> dict:
     """HTML 파일에서 샘플 데이터를 추출"""
@@ -838,31 +886,7 @@ def load_sample_from_html(html_path: str) -> dict:
 
 st.subheader("📝 19개 항목 입력")
 
-# 샘플 넣기 버튼
-if st.button("📋 샘플 넣기", help="index.html의 내용으로 모든 입력창을 채웁니다"):
-    # 현재 스크립트 위치 기준으로 docs/index.html 경로 설정
-    sample_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "index.html")
-
-    if not os.path.exists(sample_path):
-        st.error(f"⚠️ 샘플 파일을 찾을 수 없습니다: {sample_path}")
-        st.info("💡 docs/index.html 파일이 프로젝트에 포함되어 있는지 확인해주세요.")
-    else:
-        sample_data = load_sample_from_html(sample_path)
-
-        if sample_data:
-            # 세션 상태에 샘플 데이터 저장
-            st.session_state['sample_loaded'] = True
-            st.session_state['sample_name'] = sample_data['name']
-            st.session_state['sample_gender'] = sample_data['gender']
-            st.session_state['sample_birth_info'] = sample_data['birth_info']
-            st.session_state['sample_sections'] = sample_data['sections']
-            st.success("✅ 샘플 데이터를 불러왔습니다!")
-            st.rerun()
-
-# 샘플 데이터가 로드되었으면 기본 정보는 이미 위의 입력창에서 세션 상태로 반영됨
-
-# 19개 입력창
-sections = {}
+# 섹션 제목 정의 (버튼과 입력창 양쪽에서 사용)
 section_titles = [
     "핵심포인트(새해신수)", "올해의총운(새해신수)", "일년신수(전반기)(토정비결)", "일년신수(후반기)(토정비결)",
     "올해의연애운(토정비결)", "올해의건강운(토정비결)", "올해의직장운(토정비결)", "올해의소망운(토정비결)",
@@ -870,6 +894,52 @@ section_titles = [
     "재물손실막는법(새해신수)", "현재의재물운(새해신수)", "시기적운세(새해신수)", "대길(새해신수)",
     "대흉(새해신수)", "현재의길흉사(새해신수)", "운명뛰어넘기(새해신수)"
 ]
+
+# 샘플 넣기/저장 버튼을 나란히 배치
+col_sample1, col_sample2 = st.columns(2)
+
+with col_sample1:
+    # 샘플 넣기 버튼
+    if st.button("📋 샘플 넣기", help="index.html의 내용으로 모든 입력창을 채웁니다", use_container_width=True):
+        # 현재 스크립트 위치 기준으로 docs/index.html 경로 설정
+        sample_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "index.html")
+
+        if not os.path.exists(sample_path):
+            st.error(f"⚠️ 샘플 파일을 찾을 수 없습니다: {sample_path}")
+            st.info("💡 docs/index.html 파일이 프로젝트에 포함되어 있는지 확인해주세요.")
+        else:
+            sample_data = load_sample_from_html(sample_path)
+
+            if sample_data:
+                # 세션 상태에 샘플 데이터 저장
+                st.session_state['sample_loaded'] = True
+                st.session_state['sample_name'] = sample_data['name']
+                st.session_state['sample_gender'] = sample_data['gender']
+                st.session_state['sample_birth_info'] = sample_data['birth_info']
+                st.session_state['sample_sections'] = sample_data['sections']
+                st.success("✅ 샘플 데이터를 불러왔습니다!")
+                st.rerun()
+
+with col_sample2:
+    # 샘플 저장 버튼
+    if st.button("💾 샘플 저장", help="현재 입력된 내용을 index.html에 저장합니다", use_container_width=True):
+        # 현재 입력된 섹션 데이터 수집
+        current_sections = {}
+        for title in section_titles:
+            # 세션 상태에서 현재 값 가져오기
+            if title in st.session_state:
+                current_sections[title] = st.session_state[title]
+
+        # 저장 실행
+        if save_sample_to_html(user_name, gender, birth_info, current_sections):
+            st.success("✅ 샘플 데이터를 docs/index.html에 저장했습니다!")
+        else:
+            st.error("❌ 샘플 저장에 실패했습니다.")
+
+# 샘플 데이터가 로드되었으면 기본 정보는 이미 위의 입력창에서 세션 상태로 반영됨
+
+# 19개 입력창
+sections = {}
 
 for title in section_titles:
     # 샘플 데이터가 있으면 사용
