@@ -776,6 +776,29 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
     html += """        </div>
     </main>
 
+    <script>
+        // 앵커 링크 클릭 시 스크롤만 처리 (페이지 리로드 방지)
+        document.addEventListener('DOMContentLoaded', function() {
+            // 모든 앵커 링크에 이벤트 리스너 추가
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    e.preventDefault(); // 기본 동작 방지
+
+                    const targetId = this.getAttribute('href').substring(1);
+                    const targetElement = document.getElementById(targetId);
+
+                    if (targetElement) {
+                        // 부드러운 스크롤
+                        targetElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+
 </body>
 </html>
 """
