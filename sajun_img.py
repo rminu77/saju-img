@@ -689,6 +689,7 @@ def load_sample_from_html(html_path: str) -> dict:
             html_content = f.read()
 
         from bs4 import BeautifulSoup
+        import re
         soup = BeautifulSoup(html_content, 'html.parser')
 
         sample_data = {
@@ -697,6 +698,31 @@ def load_sample_from_html(html_path: str) -> dict:
             'birth_info': '양력 1988-08-09 辰時 / 음력 1988-06-27 辰時',
             'sections': {}
         }
+
+        # HTML에서 기본정보 추출
+        # 1. 제목에서 이름 추출 (예: "김영희 님의 토정비결")
+        h1 = soup.find('h1')
+        if h1:
+            title_text = h1.get_text(strip=True)
+            name_match = re.search(r'(.+?)\s*님의', title_text)
+            if name_match:
+                sample_data['name'] = name_match.group(1).strip()
+
+        # 2. 사용자 정보에서 성별과 생년월일 추출
+        # 예: "[ 여자 ] 양력 1988-08-09 辰時 / 음력 1988-06-27 辰時"
+        user_info_p = soup.find('p', class_='text-lg')
+        if user_info_p:
+            info_text = user_info_p.get_text(strip=True)
+
+            # 성별 추출
+            gender_match = re.search(r'\[\s*(남자|여자)\s*\]', info_text)
+            if gender_match:
+                sample_data['gender'] = gender_match.group(1)
+
+            # 생년월일 정보 추출 ([ 성별 ] 이후의 모든 텍스트)
+            birth_match = re.search(r'\]\s*(.+)', info_text)
+            if birth_match:
+                sample_data['birth_info'] = birth_match.group(1).strip()
 
         # 섹션 매핑 (HTML의 섹션 제목 -> 입력창 키)
         section_mapping = {
