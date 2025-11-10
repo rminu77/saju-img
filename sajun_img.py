@@ -349,11 +349,15 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
             background-color: white;
             border-bottom: 1px solid #e5e7eb;
         }}
-        /* 앵커 포인트 스타일 - 이전 컨텐츠가 끝나는 위치 */
+        /* 스크롤 시 sticky 헤더 아래 여백 */
+        html {{
+            scroll-padding-top: 150px;
+        }}
+        /* 앵커 포인트 스타일 - 타이틀 1픽셀 상단 */
         .anchor-point {{
             display: block;
             position: relative;
-            top: -160px;
+            top: -1px;
             visibility: hidden;
         }}
     </style>
@@ -364,7 +368,7 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
     <main class="max-w-3xl mx-auto bg-white shadow-2xl rounded-xl">
         <!-- 고정 헤더 영역 -->
         <div class="sticky-header rounded-t-xl">
-            <div class="p-8 sm:p-12 pb-4">
+            <div class="p-8 sm:p-12 pb-1">
                 <!-- 제목 -->
                 <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-4 text-center">
                     {user_name} 님의 신년운세
@@ -372,7 +376,7 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
 
                 <!-- 네비게이션 버튼 (가로 스크롤) -->
                 <div class="-mx-8 px-8">
-                    <div class="overflow-x-auto pb-4">
+                    <div class="overflow-x-auto pb-2">
                         <div class="flex gap-3 min-w-max">
                             <a href="#section-총운" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-full font-medium hover:bg-blue-200 transition whitespace-nowrap">총운</a>
                             <a href="#section-그림으로-보는-새해운세" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-full font-medium hover:bg-blue-200 transition whitespace-nowrap">그림</a>
@@ -392,7 +396,7 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
         </div>
 
         <!-- 콘텐츠 영역 -->
-        <div class="p-8 sm:p-12 pt-4">
+        <div class="p-8 sm:p-12 pt-2">
 """
 
     # 섹션을 묶어서 처리 (새로운 순서)
