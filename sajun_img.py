@@ -897,9 +897,21 @@ def get_embedded_sample_data() -> dict:
     if EMBEDDED_SAMPLE_DATA is not None:
         return EMBEDDED_SAMPLE_DATA
 
-    # JSON 파일이 있으면 로드
-    json_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "extracted_sample_data.json")
-    if os.path.exists(json_path):
+    # JSON 파일이 있으면 로드 (여러 경로 시도)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    possible_paths = [
+        os.path.join(current_dir, "extracted_sample_data.json"),
+        "extracted_sample_data.json",  # 현재 작업 디렉토리
+        os.path.join(os.getcwd(), "extracted_sample_data.json")
+    ]
+
+    json_path = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            json_path = path
+            break
+
+    if json_path and os.path.exists(json_path):
         try:
             import json
             with open(json_path, 'r', encoding='utf-8') as f:
@@ -955,6 +967,10 @@ def get_embedded_sample_data() -> dict:
             return EMBEDDED_SAMPLE_DATA
         except Exception as e:
             st.warning(f"JSON 샘플 데이터 로드 실패: {e}")
+    else:
+        # 디버깅: 파일을 찾을 수 없을 때 경로 정보 출력
+        st.warning(f"⚠️ extracted_sample_data.json 파일을 찾을 수 없습니다.")
+        st.info(f"시도한 경로:\n" + "\n".join(f"- {p} (존재: {os.path.exists(p)})" for p in possible_paths))
 
     # JSON 파일이 없으면 기본 샘플 데이터 반환
     return {
