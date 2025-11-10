@@ -96,7 +96,7 @@ DEFAULT_CHAT_SUMMARY_INSTRUCTION = """당신은 도사 말투로 사주를 요�
 - 사용자를 항상 "{user_name}"(으)로 부름
 - 4500자 내외로 요약 (최대 5000자)
 - 핵심 내용을 빠짐없이 전달하되 도사스러운 표현으로 재구성
-- 구조화된 형식으로 작성 (문단 구분 명확히)"""
+- - 맨 마지막에 더 자세히 보려면 토정비결 보기 버튼을 눌러보라고 안내해"""
 
 # ----------------------------
 # 유틸
@@ -878,7 +878,13 @@ chat_summary_prompt_input = st.text_area(
 chat_summary_prompt = chat_summary_prompt_input if chat_summary_prompt_input.strip() else DEFAULT_CHAT_SUMMARY_INSTRUCTION
 
 st.markdown("---")
-generate = st.button("🚀 HTML 생성", type="primary", use_container_width=True)
+
+# 두 개의 버튼을 나란히 배치
+col1, col2 = st.columns(2)
+with col1:
+    generate = st.button("🚀 HTML 생성", type="primary", use_container_width=True)
+with col2:
+    generate_summary = st.button("💬 채팅방 요약", use_container_width=True)
 
 if generate:
     # "올해의총운" 텍스트로 이미지 생성
@@ -935,49 +941,9 @@ if generate:
 
     final_prompt = prompt
 
-    # 화면을 반반 나눠서 표시할 컬럼 생성
-    col_left, col_right = st.columns(2)
-
-    # 병렬 실행을 위한 함수들
-    def generate_chat_summary_task():
-        """채팅방 요약 생성"""
-        try:
-            # 모든 섹션 내용 합치기
-            all_content = []
-            for title, content in sections.items():
-                if content.strip():
-                    all_content.append(f"## {title}\n{content}")
-
-            full_text = "\n\n".join(all_content)
-
-            # 도사 스타일 요약 프롬프트 - {user_name} 치환
-            chat_summary_instruction = locked_chat_summary_prompt.format(user_name=user_name)
-
-            chat_summary_msg = f"""다음은 {user_name}의 사주 내용입니다. 이를 도사 말투로 4500자 내외로 요약해주세요:
-
-{full_text}
-
-[요구사항]
-- 도사 말투 사용
-- {user_name}을(를) 호칭으로 사용
-- 핵심 내용 포함: 총운, 연애운, 건강운, 직장운, 재물운, 월별운, 대길대흉 등
-- 4500자 내외 (최대 5000자)
-- 밝고 유쾌하면서도 무게감 있게"""
-
-            chat_summary = locked_openai_client.chat.completions.create(
-                model="gpt-4.1-mini",
-                messages=[
-                    {"role": "system", "content": chat_summary_instruction},
-                    {"role": "user", "content": chat_summary_msg},
-                ]
-            )
-            return (chat_summary.choices[0].message.content or "").strip()
-        except Exception as e:
-            return f"오류: {e}"
-
-    def generate_image_task():
-        """이미지 생성"""
-        return generate_images(
+    # 이미지 생성
+    with st.spinner("🎨 이미지 생성 중..."):
+        imgs = generate_images(
             final_prompt,
             num_images=1,
             provider="openai",
@@ -985,53 +951,16 @@ if generate:
             openai_client=locked_openai_client,
         )
 
-    # 이미지 생성과 채팅방 요약을 병렬로 실행
-    with st.spinner("🎨 이미지 생성 및 💬 채팅방 요약 생성 중..."):
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            future_chat = executor.submit(generate_chat_summary_task)
-            future_image = executor.submit(generate_image_task)
-
-            # 결과 수집
-            chat_summary_text = future_chat.result()
-            imgs = future_image.result()
-
-    # 세션 상태에 채팅방 요약 저장
-    st.session_state["chat_summary"] = chat_summary_text
-
-    # 왼쪽: 채팅방 요약
-    with col_left:
-        st.markdown("#### 💬 채팅방 요약")
-        if chat_summary_text and not chat_summary_text.startswith("오류:"):
-            # 채팅 UI 스타일로 표시
-            st.markdown(f"""
-            <div style="background-color: #f8f9fa; border-radius: 10px; padding: 20px; margin: 10px 0; border-left: 4px solid #4a90e2;">
-                <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                    <span style="font-size: 24px; margin-right: 8px;">🪭</span>
-                    <span style="font-weight: bold; color: #4a90e2;">도사</span>
-                </div>
-                <div style="white-space: pre-wrap; line-height: 1.6; color: #333; max-height: 600px; overflow-y: auto;">
-{chat_summary_text}
-                </div>
-                <div style="margin-top: 10px; font-size: 12px; color: #999;">
-                    📏 {len(chat_summary_text)}자
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.warning(f"채팅방 요약 생성 실패: {chat_summary_text}")
-
     # 이미지 처리
     valid = [i for i in imgs if i is not None]
     if not valid:
-        with col_right:
-            st.error("이미지 생성에 실패했습니다.")
+        st.error("이미지 생성에 실패했습니다.")
         st.stop()
 
-    # 오른쪽: 이미지
-    with col_right:
-        st.markdown("#### 🎨 생성된 이미지")
-        img = valid[0]
-        st.image(img, caption="새해운세 이미지", use_container_width=True)
+    # 이미지 표시
+    st.markdown("#### 🎨 생성된 이미지")
+    img = valid[0]
+    st.image(img, caption="새해운세 이미지", use_container_width=True)
 
     # 이미지를 base64로 인코딩
     img = valid[0]
@@ -1086,6 +1015,76 @@ if generate:
 
     st.success(f"✅ HTML 생성 완료!")
 
+# 채팅방 요약 버튼 클릭 시
+if generate_summary:
+    # 모든 섹션 내용 합치기
+    all_content = []
+    for title, content in sections.items():
+        if content.strip():
+            all_content.append(f"## {title}\n{content}")
+
+    full_text = "\n\n".join(all_content)
+
+    if not full_text.strip():
+        st.error("입력된 내용이 없습니다. 섹션을 입력해주세요.")
+        st.stop()
+
+    # 현재 설정을 고정
+    locked_chat_summary_prompt = chat_summary_prompt
+    locked_openai_client = openai_client
+
+    with st.spinner("💬 채팅방 요약 생성 중 (gpt-4.1-mini 사용)..."):
+        try:
+            # 도사 스타일 요약 프롬프트 - {user_name} 치환
+            chat_summary_instruction = locked_chat_summary_prompt.format(user_name=user_name)
+
+            chat_summary_msg = f"""다음은 {user_name}의 사주 내용입니다. 이를 도사 말투로 4500자 내외로 요약해주세요:
+
+{full_text}
+
+[요구사항]
+- 도사 말투 사용
+- {user_name}을(를) 호칭으로 사용
+- 핵심 내용 포함: 총운, 연애운, 건강운, 직장운, 재물운, 월별운, 대길대흉 등
+- 4500자 내외 (최대 5000자)
+- 밝고 유쾌하면서도 무게감 있게"""
+
+            chat_summary = locked_openai_client.chat.completions.create(
+                model="gpt-4.1-mini",
+                messages=[
+                    {"role": "system", "content": chat_summary_instruction},
+                    {"role": "user", "content": chat_summary_msg},
+                ]
+            )
+            chat_summary_text = (chat_summary.choices[0].message.content or "").strip()
+
+            # 세션 상태에 채팅방 요약 저장
+            st.session_state["chat_summary"] = chat_summary_text
+
+            # 요약 표시
+            st.markdown("#### 💬 채팅방 요약")
+            if chat_summary_text:
+                # 채팅 UI 스타일로 표시
+                st.markdown(f"""
+                <div style="background-color: #f8f9fa; border-radius: 10px; padding: 20px; margin: 10px 0; border-left: 4px solid #4a90e2;">
+                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <span style="font-size: 24px; margin-right: 8px;">🪭</span>
+                        <span style="font-weight: bold; color: #4a90e2;">도사</span>
+                    </div>
+                    <div style="white-space: pre-wrap; line-height: 1.6; color: #333; max-height: 600px; overflow-y: auto;">
+{chat_summary_text}
+                    </div>
+                    <div style="margin-top: 10px; font-size: 12px; color: #999;">
+                        📏 {len(chat_summary_text)}자
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                st.success("✅ 채팅방 요약 생성 완료!")
+            else:
+                st.warning("채팅방 요약 생성에 실패했습니다.")
+        except Exception as exc:
+            st.error(f"채팅방 요약 생성 중 오류가 발생했습니다: {exc}")
+
 # 결과물 표시 (세션 상태에서 가져옴)
 if st.session_state.generated_html is not None:
     st.markdown("---")
@@ -1105,7 +1104,7 @@ if st.session_state.generated_html is not None:
     st.markdown("### 📄 HTML 미리보기")
     st.components.v1.html(st.session_state.generated_html, height=800, scrolling=True)
 
-if not generate:
+if not generate and not generate_summary:
     summary_display = st.session_state.get("core_scene_summary", "").strip()
     if summary_display:
         st.markdown("#### ✨ 핵심 장면 요약")
@@ -1113,7 +1112,7 @@ if not generate:
 
     chat_summary_display = st.session_state.get("chat_summary", "").strip()
     if chat_summary_display:
-        st.markdown("#### 💬 채팅방 요약")
+        st.markdown("#### 💬 채팅방 요약 (이전 생성 결과)")
         # 채팅 UI 스타일로 표시
         st.markdown(f"""
         <div style="background-color: #f8f9fa; border-radius: 10px; padding: 20px; margin: 10px 0; border-left: 4px solid #4a90e2;">
