@@ -865,9 +865,85 @@ if birth_info:
 
 st.markdown("---")
 
+# 내장 샘플 데이터 (Render 배포 시 파일 의존성 제거)
+EMBEDDED_SAMPLE_DATA = None  # 초기화는 함수에서 수행
+
+def get_embedded_sample_data() -> dict:
+    """내장된 샘플 데이터 반환 (JSON 파일에서 로드)"""
+    global EMBEDDED_SAMPLE_DATA
+    if EMBEDDED_SAMPLE_DATA is not None:
+        return EMBEDDED_SAMPLE_DATA
+
+    # JSON 파일이 있으면 로드
+    json_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "extracted_sample_data.json")
+    if os.path.exists(json_path):
+        try:
+            import json
+            with open(json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            # 섹션 키 매핑 (HTML 섹션명 -> 입력창 키)
+            section_mapping = {
+                '핵심포인트': '핵심포인트(새해신수)',
+                '올해의 총운': '올해의총운(새해신수)',
+                '일년신수(전반기)': '일년신수(전반기)(토정비결)',
+                '일년신수(후반기)': '일년신수(후반기)(토정비결)',
+                '올해의 연애운': '올해의연애운(토정비결)',
+                '올해의 건강운': '올해의건강운(토정비결)',
+                '올해의 직장운': '올해의직장운(토정비결)',
+                '올해의 소망운': '올해의소망운(토정비결)',
+                '올해의 여행·이사운': '올해의여행이사운(새해신수)',
+                '월별운': '월별운(새해신수)',
+                '재물운의 특성': '재물운의특성(새해신수)',
+                '재물 모으는 법': '재물모으는법(새해신수)',
+                '재물 손실 막는 법': '재물손실막는법(새해신수)',
+                '현재의 재물운': '현재의재물운(새해신수)',
+                '시기적 운세': '시기적운세(새해신수)',
+                '현재의 길흉사': '현재의길흉사(새해신수)',
+                '운명 뛰어넘기': '운명뛰어넘기(새해신수)'
+            }
+
+            # 매핑된 섹션 생성
+            mapped_sections = {}
+            for old_key, content in data['sections'].items():
+                if old_key == '그림으로 보는 새해운세':
+                    continue  # 이미지는 제외
+                new_key = section_mapping.get(old_key, old_key)
+                mapped_sections[new_key] = content
+
+            # 대길대흉 섹션 분리
+            if '대길대흉' in data['sections']:
+                daegil_daeheung = data['sections']['대길대흉']
+                # 간단한 분리: "대흉" 키워드로 나누기
+                if '대흉 (大凶)' in daegil_daeheung:
+                    parts = daegil_daeheung.split('대흉 (大凶)')
+                    mapped_sections['대길(새해신수)'] = parts[0].replace('대길 (大吉)', '').strip()
+                    mapped_sections['대흉(새해신수)'] = parts[1].strip()
+                else:
+                    mapped_sections['대길(새해신수)'] = daegil_daeheung
+                    mapped_sections['대흉(새해신수)'] = ""
+
+            EMBEDDED_SAMPLE_DATA = {
+                'name': data['name'],
+                'gender': data['gender'],
+                'birth_info': data['birth_info'],
+                'sections': mapped_sections
+            }
+            return EMBEDDED_SAMPLE_DATA
+        except Exception as e:
+            st.warning(f"JSON 샘플 데이터 로드 실패: {e}")
+
+    # JSON 파일이 없으면 기본 샘플 데이터 반환
+    return {
+        'name': '김영희',
+        'gender': '여자',
+        'birth_info': '양력 1988-08-09 辰時 / 음력 1988-06-27 辰時',
+        'sections': {}
+    }
+
 # 샘플 데이터 로드 함수
 def load_sample_from_html(html_path: str) -> dict:
-    """HTML 파일에서 샘플 데이터를 추출"""
+    """HTML 파일에서 샘플 데이터를 추출 (파일이 없으면 내장 데이터 사용)"""
     try:
         with open(html_path, 'r', encoding='utf-8') as f:
             html_content = f.read()
@@ -1032,25 +1108,31 @@ section_titles = [
 ]
 
 # 샘플 넣기 버튼
-if st.button("📋 샘플 넣기", help="index.html의 내용으로 모든 입력창을 채웁니다", use_container_width=True):
-    # 현재 스크립트 위치 기준으로 docs/index.html 경로 설정
+if st.button("📋 샘플 넣기", help="샘플 데이터로 모든 입력창을 채웁니다", use_container_width=True):
+    # 먼저 HTML 파일 시도
     sample_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "index.html")
+    sample_data = None
 
-    if not os.path.exists(sample_path):
-        st.error(f"⚠️ 샘플 파일을 찾을 수 없습니다: {sample_path}")
-        st.info("💡 docs/index.html 파일이 프로젝트에 포함되어 있는지 확인해주세요.")
-    else:
+    if os.path.exists(sample_path):
+        # HTML 파일이 있으면 로드
         sample_data = load_sample_from_html(sample_path)
 
-        if sample_data:
-            # 임시 세션 상태에 샘플 데이터 저장 (언더스코어로 시작하는 키 사용)
-            st.session_state['_sample_name'] = sample_data['name']
-            st.session_state['_sample_gender'] = sample_data['gender']
-            st.session_state['_sample_birth_info'] = sample_data['birth_info']
-            st.session_state['_sample_sections'] = sample_data['sections']
+    if not sample_data:
+        # HTML 파일이 없거나 로드 실패 시 내장 데이터 사용
+        sample_data = get_embedded_sample_data()
 
-            st.success("✅ 샘플 데이터를 불러왔습니다!")
-            st.rerun()
+    if sample_data and sample_data.get('sections'):
+        # 임시 세션 상태에 샘플 데이터 저장 (언더스코어로 시작하는 키 사용)
+        st.session_state['_sample_name'] = sample_data['name']
+        st.session_state['_sample_gender'] = sample_data['gender']
+        st.session_state['_sample_birth_info'] = sample_data['birth_info']
+        st.session_state['_sample_sections'] = sample_data['sections']
+
+        st.success("✅ 샘플 데이터를 불러왔습니다!")
+        st.rerun()
+    else:
+        st.error("⚠️ 샘플 데이터를 불러올 수 없습니다.")
+        st.info("💡 extracted_sample_data.json 파일이 프로젝트에 포함되어 있는지 확인해주세요.")
 
 # 19개 입력창
 sections = {}
