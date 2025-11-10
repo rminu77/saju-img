@@ -839,20 +839,22 @@ if "html_filename" not in st.session_state:
 # 사용자 정보 입력
 st.subheader("📋 기본 정보")
 
-# 샘플 데이터가 로드되었는지 확인하고 기본값 설정
-default_name = st.session_state.get('_sample_name', '김영희')
-default_gender = st.session_state.get('_sample_gender', '여자')
-default_birth_info = st.session_state.get('_sample_birth_info', '양력 1988-08-09 辰時 / 음력 1988-06-27 辰時')
+# 세션 상태 초기값 설정 (최초 실행 시에만)
+if 'user_name_input' not in st.session_state:
+    st.session_state['user_name_input'] = '김영희'
+if 'gender_input' not in st.session_state:
+    st.session_state['gender_input'] = '여자'
+if 'birth_info_input' not in st.session_state:
+    st.session_state['birth_info_input'] = '양력 1988-08-09 辰時 / 음력 1988-06-27 辰時'
 
-# 성별의 인덱스 계산
+# 성별 옵션
 gender_options = ["남자", "여자"]
-default_gender_index = gender_options.index(default_gender) if default_gender in gender_options else 1
 
-user_name = st.text_input("이름", value=default_name, key="user_name_input")
-gender = st.selectbox("성별", gender_options, index=default_gender_index, key="gender_input")
+# 위젯 (key로 세션 상태가 자동 연결됨)
+user_name = st.text_input("이름", key="user_name_input")
+gender = st.selectbox("성별", gender_options, key="gender_input")
 birth_info = st.text_input(
     "생년월일 정보",
-    value=default_birth_info,
     help="예시: 양력 1988-08-09 辰時 / 음력 1988-06-27 辰時",
     key="birth_info_input"
 )
@@ -1184,15 +1186,21 @@ if uploaded_csv is not None:
                     # 섹션 데이터
                     sample_data['sections'][item] = content
 
-            # 세션 상태에 저장
+            # 세션 상태에 저장 (위젯 key에 맞춰서)
             if 'name' in sample_data:
                 st.session_state['_sample_name'] = sample_data['name']
+                st.session_state['user_name_input'] = sample_data['name']
             if 'gender' in sample_data:
                 st.session_state['_sample_gender'] = sample_data['gender']
+                # gender는 selectbox이므로 인덱스가 아닌 값으로 설정되므로 별도 처리 불필요
             if 'birth_info' in sample_data:
                 st.session_state['_sample_birth_info'] = sample_data['birth_info']
+                st.session_state['birth_info_input'] = sample_data['birth_info']
             if sample_data.get('sections'):
                 st.session_state['_sample_sections'] = sample_data['sections']
+                # 각 섹션의 text_area key에 직접 값 설정
+                for section_key, section_value in sample_data['sections'].items():
+                    st.session_state[section_key] = section_value
 
             st.success("✅ CSV 파일에서 데이터를 불러왔습니다!")
             st.rerun()
@@ -1205,12 +1213,8 @@ if uploaded_csv is not None:
 sections = {}
 
 for title in section_titles:
-    # 샘플 데이터가 있으면 사용
-    default_value = ""
-    if '_sample_sections' in st.session_state and title in st.session_state['_sample_sections']:
-        default_value = st.session_state['_sample_sections'][title]
-
-    sections[title] = st.text_area(title, value=default_value, height=100, key=title)
+    # key로 지정한 세션 상태가 자동으로 위젯 값에 반영됨
+    sections[title] = st.text_area(title, height=100, key=title)
 
 system_prompt_input = st.text_area(
     "이미지 생성 시스템 프롬프트",
