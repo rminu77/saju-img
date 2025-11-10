@@ -874,19 +874,31 @@ if uploaded_csv is not None:
                     # 섹션 데이터
                     sample_data['sections'][item] = content
 
+            # 디버깅: 로드된 데이터 확인
+            st.info(f"📊 로드된 데이터: 이름={sample_data.get('name')}, 성별={sample_data.get('gender')}, 섹션 수={len(sample_data.get('sections', {}))}")
+
             # 세션 상태에 저장 (위젯 key에 맞춰서)
             if 'name' in sample_data:
                 st.session_state['user_name_input'] = sample_data['name']
+                st.write(f"✓ 이름 설정: {sample_data['name']}")
             if 'gender' in sample_data:
                 st.session_state['gender_input'] = sample_data['gender']
+                st.write(f"✓ 성별 설정: {sample_data['gender']}")
             if 'birth_info' in sample_data:
                 st.session_state['birth_info_input'] = sample_data['birth_info']
+                st.write(f"✓ 생년월일 설정: {sample_data['birth_info']}")
             if sample_data.get('sections'):
                 # 각 섹션의 text_area key에 직접 값 설정
+                section_count = 0
                 for section_key, section_value in sample_data['sections'].items():
                     st.session_state[section_key] = section_value
+                    section_count += 1
+                st.write(f"✓ {section_count}개 섹션 데이터 설정 완료")
 
             st.success("✅ CSV 파일에서 데이터를 불러왔습니다!")
+            st.warning("🔄 3초 후 페이지를 새로고침하여 데이터를 표시합니다...")
+            import time
+            time.sleep(3)
             st.rerun()
 
     except Exception as e:
