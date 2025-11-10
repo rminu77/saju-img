@@ -836,6 +836,65 @@ if "generated_image" not in st.session_state:
 if "html_filename" not in st.session_state:
     st.session_state.html_filename = None
 
+# CSV 파일 업로드로 샘플 데이터 입력 (위젯 생성 전에 처리)
+st.markdown("**📤 샘플 데이터 업로드**")
+uploaded_csv = st.file_uploader(
+    "CSV 파일을 업로드하면 자동으로 입력창이 채워집니다",
+    type=['csv'],
+    help="이름, 성별, 생년월일 정보와 19개 섹션 데이터가 포함된 CSV 파일을 업로드하세요"
+)
+
+if uploaded_csv is not None:
+    try:
+        import pandas as pd
+        import io
+
+        # CSV 파일 읽기
+        df = pd.read_csv(io.StringIO(uploaded_csv.getvalue().decode('utf-8')))
+
+        # 필수 컬럼 확인
+        required_cols = ['항목', '내용']
+        if not all(col in df.columns for col in required_cols):
+            st.error(f"⚠️ CSV 파일에 필수 컬럼이 없습니다: {required_cols}")
+        else:
+            # 데이터 추출
+            sample_data = {'sections': {}}
+
+            for _, row in df.iterrows():
+                item = str(row['항목']).strip()
+                content = str(row['내용']).strip()
+
+                if item == '이름':
+                    sample_data['name'] = content
+                elif item == '성별':
+                    sample_data['gender'] = content
+                elif item == '생년월일':
+                    sample_data['birth_info'] = content
+                else:
+                    # 섹션 데이터
+                    sample_data['sections'][item] = content
+
+            # 세션 상태에 저장 (위젯 key에 맞춰서)
+            if 'name' in sample_data:
+                st.session_state['user_name_input'] = sample_data['name']
+            if 'gender' in sample_data:
+                st.session_state['gender_input'] = sample_data['gender']
+            if 'birth_info' in sample_data:
+                st.session_state['birth_info_input'] = sample_data['birth_info']
+            if sample_data.get('sections'):
+                # 각 섹션의 text_area key에 직접 값 설정
+                for section_key, section_value in sample_data['sections'].items():
+                    st.session_state[section_key] = section_value
+
+            st.success("✅ CSV 파일에서 데이터를 불러왔습니다!")
+            st.rerun()
+
+    except Exception as e:
+        st.error(f"⚠️ CSV 파일 읽기 실패: {e}")
+        st.info("💡 CSV 파일 형식을 확인해주세요. 첫 행은 '항목,내용' 헤더여야 합니다.")
+
+st.markdown("---")
+
 # 사용자 정보 입력
 st.subheader("📋 기본 정보")
 
@@ -1139,7 +1198,7 @@ def load_sample_from_html(html_path: str) -> dict:
 
 st.subheader("📝 19개 항목 입력")
 
-# 섹션 제목 정의 (버튼과 입력창 양쪽에서 사용)
+# 섹션 제목 정의
 section_titles = [
     "핵심포인트(새해신수)", "올해의총운(새해신수)", "일년신수(전반기)(토정비결)", "일년신수(후반기)(토정비결)",
     "올해의연애운(토정비결)", "올해의건강운(토정비결)", "올해의직장운(토정비결)", "올해의소망운(토정비결)",
@@ -1147,67 +1206,6 @@ section_titles = [
     "재물손실막는법(새해신수)", "현재의재물운(새해신수)", "시기적운세(새해신수)", "대길(새해신수)",
     "대흉(새해신수)", "현재의길흉사(새해신수)", "운명뛰어넘기(새해신수)"
 ]
-
-# CSV 파일 업로드로 샘플 데이터 입력
-st.markdown("**📤 샘플 데이터 업로드**")
-uploaded_csv = st.file_uploader(
-    "CSV 파일을 업로드하면 자동으로 입력창이 채워집니다",
-    type=['csv'],
-    help="이름, 성별, 생년월일 정보와 19개 섹션 데이터가 포함된 CSV 파일을 업로드하세요"
-)
-
-if uploaded_csv is not None:
-    try:
-        import pandas as pd
-        import io
-
-        # CSV 파일 읽기
-        df = pd.read_csv(io.StringIO(uploaded_csv.getvalue().decode('utf-8')))
-
-        # 필수 컬럼 확인
-        required_cols = ['항목', '내용']
-        if not all(col in df.columns for col in required_cols):
-            st.error(f"⚠️ CSV 파일에 필수 컬럼이 없습니다: {required_cols}")
-        else:
-            # 데이터 추출
-            sample_data = {'sections': {}}
-
-            for _, row in df.iterrows():
-                item = str(row['항목']).strip()
-                content = str(row['내용']).strip()
-
-                if item == '이름':
-                    sample_data['name'] = content
-                elif item == '성별':
-                    sample_data['gender'] = content
-                elif item == '생년월일':
-                    sample_data['birth_info'] = content
-                else:
-                    # 섹션 데이터
-                    sample_data['sections'][item] = content
-
-            # 세션 상태에 저장 (위젯 key에 맞춰서)
-            if 'name' in sample_data:
-                st.session_state['_sample_name'] = sample_data['name']
-                st.session_state['user_name_input'] = sample_data['name']
-            if 'gender' in sample_data:
-                st.session_state['_sample_gender'] = sample_data['gender']
-                # gender는 selectbox이므로 인덱스가 아닌 값으로 설정되므로 별도 처리 불필요
-            if 'birth_info' in sample_data:
-                st.session_state['_sample_birth_info'] = sample_data['birth_info']
-                st.session_state['birth_info_input'] = sample_data['birth_info']
-            if sample_data.get('sections'):
-                st.session_state['_sample_sections'] = sample_data['sections']
-                # 각 섹션의 text_area key에 직접 값 설정
-                for section_key, section_value in sample_data['sections'].items():
-                    st.session_state[section_key] = section_value
-
-            st.success("✅ CSV 파일에서 데이터를 불러왔습니다!")
-            st.rerun()
-
-    except Exception as e:
-        st.error(f"⚠️ CSV 파일 읽기 실패: {e}")
-        st.info("💡 CSV 파일 형식을 확인해주세요. 첫 행은 '항목,내용' 헤더여야 합니다.")
 
 # 19개 입력창
 sections = {}
