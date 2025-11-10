@@ -349,6 +349,10 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
             background-color: white;
             border-bottom: 1px solid #e5e7eb;
         }}
+        /* 앵커 링크 오프셋 (sticky 헤더 높이만큼) */
+        section {{
+            scroll-margin-top: 180px;
+        }}
     </style>
 </head>
 <body class="bg-gray-100 py-10 px-4">
