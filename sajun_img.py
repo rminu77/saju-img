@@ -1228,8 +1228,9 @@ if debug_sections:
 sections = {}
 
 for title in section_titles:
-    # key로 지정한 세션 상태가 자동으로 위젯 값에 반영됨
-    sections[title] = st.text_area(title, height=100, key=title)
+    # 세션 상태에서 값을 가져와서 value로 전달 (key만으로는 자동 반영 안됨!)
+    default_value = st.session_state.get(title, "")
+    sections[title] = st.text_area(title, value=default_value, height=100, key=title)
 
 system_prompt_input = st.text_area(
     "이미지 생성 시스템 프롬프트",
