@@ -349,9 +349,9 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
             background-color: white;
             border-bottom: 1px solid #e5e7eb;
         }}
-        /* 앵커 링크 오프셋 (sticky 헤더 높이만큼) */
+        /* 앵커 링크 오프셋 - 이전 섹션 끝부분이 보이도록 조정 */
         section {{
-            scroll-margin-top: 180px;
+            scroll-margin-top: 140px;
         }}
     </style>
 </head>
