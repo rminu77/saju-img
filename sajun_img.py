@@ -306,7 +306,7 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{user_name} 님의 토정비결</title>
+    <title>{user_name} 님의 신년운세</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: Inter and Noto Sans KR -->
@@ -326,99 +326,148 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
 
     <!-- 메인 콘텐츠 카드 -->
     <main class="max-w-3xl mx-auto bg-white shadow-2xl rounded-xl overflow-hidden">
-        <div class="p-8 sm:p-12">
+        <!-- 고정 헤더 영역 -->
+        <div class="sticky top-0 z-50 bg-white border-b border-gray-200">
+            <div class="p-8 sm:p-12 pb-4">
+                <!-- 제목 -->
+                <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-4 text-center">
+                    {user_name} 님의 신년운세
+                </h1>
 
-            <!-- 제목 -->
-            <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-4 text-center">
-                {user_name} 님의 토정비결
-            </h1>
+                <!-- 네비게이션 버튼 (가로 스크롤) -->
+                <div class="-mx-8 px-8">
+                    <div class="overflow-x-auto pb-4">
+                        <div class="flex gap-3 min-w-max">
+                            <a href="#section-총운" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-full font-medium hover:bg-blue-200 transition whitespace-nowrap">총운</a>
+                            <a href="#section-그림으로-보는-새해운세" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-full font-medium hover:bg-blue-200 transition whitespace-nowrap">그림</a>
+                            <a href="#section-새해신수" class="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-full font-medium hover:bg-indigo-200 transition whitespace-nowrap">새해신수</a>
+                            <a href="#section-재물운" class="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-full font-medium hover:bg-yellow-200 transition whitespace-nowrap">재물운</a>
+                            <a href="#section-연애운" class="px-4 py-2 bg-pink-100 text-pink-700 rounded-full font-medium hover:bg-pink-200 transition whitespace-nowrap">연애운</a>
+                            <a href="#section-건강운" class="px-4 py-2 bg-green-100 text-green-700 rounded-full font-medium hover:bg-green-200 transition whitespace-nowrap">건강운</a>
+                            <a href="#section-직장운" class="px-4 py-2 bg-purple-100 text-purple-700 rounded-full font-medium hover:bg-purple-200 transition whitespace-nowrap">직장운</a>
+                            <a href="#section-소망운" class="px-4 py-2 bg-cyan-100 text-cyan-700 rounded-full font-medium hover:bg-cyan-200 transition whitespace-nowrap">소망운</a>
+                            <a href="#section-이사운" class="px-4 py-2 bg-teal-100 text-teal-700 rounded-full font-medium hover:bg-teal-200 transition whitespace-nowrap">이사운</a>
+                            <a href="#section-월별운세" class="px-4 py-2 bg-orange-100 text-orange-700 rounded-full font-medium hover:bg-orange-200 transition whitespace-nowrap">월별운세</a>
+                            <a href="#section-운의-흐름" class="px-4 py-2 bg-red-100 text-red-700 rounded-full font-medium hover:bg-red-200 transition whitespace-nowrap">운의 흐름</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-            <!-- 사용자 정보 -->
-            <p class="text-lg text-gray-600 mb-10 font-medium text-center">
-                <strong>[ {gender} ]</strong> 양력 {solar_date} {birth_time} / 음력 {lunar_date} {birth_time}
-            </p>
+        <!-- 콘텐츠 영역 -->
+        <div class="p-8 sm:p-12 pt-4">
+"""
 
-            <!-- 섹션: 그림으로 보는 새해운세 -->
-            <section class="mb-10">
-                <h2 class="text-2xl font-semibold text-blue-700 border-b-2 border-blue-100 pb-3 mb-6">
-                    그림으로 보는 새해운세
+    # 섹션을 묶어서 처리 (새로운 순서)
+    grouped_sections = [
+        {
+            "title": "총운",
+            "sections": ["핵심포인트", "올해의총운"],
+            "color": "blue"
+        },
+        {
+            "title": "그림으로 보는 새해운세",
+            "sections": ["__image__"],  # 특별 처리: 이미지
+            "color": "blue"
+        },
+        {
+            "title": "새해신수",
+            "sections": ["일년신수(전반기", "일년신수(후반기"],
+            "color": "indigo"
+        },
+        {
+            "title": "재물운",
+            "sections": ["재물운의특성", "재물모으는법", "재물손실막는법", "현재의재물운"],
+            "color": "yellow"
+        },
+        {
+            "title": "연애운",
+            "sections": ["올해의연애운"],
+            "color": "pink"
+        },
+        {
+            "title": "건강운",
+            "sections": ["올해의건강운"],
+            "color": "green"
+        },
+        {
+            "title": "직장운",
+            "sections": ["올해의직장운"],
+            "color": "purple"
+        },
+        {
+            "title": "소망운",
+            "sections": ["올해의소망운"],
+            "color": "cyan"
+        },
+        {
+            "title": "이사운",
+            "sections": ["올해의여행이사운"],
+            "color": "teal"
+        },
+        {
+            "title": "월별운세",
+            "sections": ["월별운"],
+            "color": "orange"
+        },
+        {
+            "title": "운의 흐름",
+            "sections": ["시기적운세", "대길", "대흉", "현재의길흉사", "운명뛰어넘기"],
+            "color": "red"
+        }
+    ]
+
+    for group in grouped_sections:
+        display_title = group["title"]
+        section_keys = group["sections"]
+        color = group["color"]
+
+        # 이미지 섹션 특별 처리
+        if section_keys == ["__image__"]:
+            section_id = display_title.replace(" ", "-")
+            html += f"""
+            <!-- 섹션: {display_title} -->
+            <section id="section-{section_id}" class="mb-10">
+                <h2 class="text-2xl font-semibold text-{color}-700 border-b-2 border-{color}-100 pb-3 mb-6">
+                    {display_title}
                 </h2>
                 <div class="flex justify-center">
                     <img src="data:image/png;base64,{image_base64}" alt="새해운세 이미지" class="rounded-lg shadow-lg max-w-full h-auto">
                 </div>
             </section>
 """
-
-    # 섹션별 색상 정의
-    section_colors = {
-        "핵심포인트": ("blue", "blue"),
-        "올해의총운": ("blue", "blue"),
-        "일년신수(전반기": ("blue", "blue"),
-        "일년신수(후반기": ("blue", "blue"),
-        "올해의연애운": ("pink", "pink"),
-        "올해의건강운": ("green", "green"),
-        "올해의직장운": ("purple", "purple"),
-        "올해의소망운": ("indigo", "indigo"),
-        "올해의여행이사운": ("teal", "teal"),
-        "월별운": ("orange", "orange"),
-        "재물운의특성": ("yellow", "yellow"),
-        "재물모으는법": ("yellow", "yellow"),
-        "재물손실막는법": ("yellow", "yellow"),
-        "현재의재물운": ("yellow", "yellow"),
-        "시기적운세": ("red", "red"),
-        "대길대흉": ("gray", "gray"),  # 대길대흉은 회색 테두리
-        "현재의길흉사": ("cyan", "cyan"),
-        "운명뛰어넘기": ("violet", "violet")
-    }
-
-    section_display_titles = {
-        "핵심포인트": "핵심포인트",
-        "올해의총운": "올해의 총운",
-        "일년신수(전반기": "일년신수(전반기)",
-        "일년신수(후반기": "일년신수(후반기)",
-        "올해의연애운": "올해의 연애운",
-        "올해의건강운": "올해의 건강운",
-        "올해의직장운": "올해의 직장운",
-        "올해의소망운": "올해의 소망운",
-        "올해의여행이사운": "올해의 여행·이사운",
-        "월별운": "월별운",
-        "재물운의특성": "재물운의 특성",
-        "재물모으는법": "재물 모으는 법",
-        "재물손실막는법": "재물 손실 막는 법",
-        "현재의재물운": "현재의 재물운",
-        "시기적운세": "시기적 운세",
-        "대길대흉": "대길대흉",  # 대길과 대흉을 하나의 섹션으로 통합
-        "현재의길흉사": "현재의 길흉사",
-        "운명뛰어넘기": "운명 뛰어넘기"
-    }
-
-    for key, display_title in section_display_titles.items():
-        # 대길과 대흉은 개별적으로 스킵 (대길대흉 섹션에서 처리)
-        if key in ["대길", "대흉"]:
             continue
 
-        content = sections.get(key, "").strip()
-        # 대길대흉 섹션은 대길이나 대흉 중 하나라도 있으면 표시
-        if key == "대길대흉":
-            if not sections.get("대길", "").strip() and not sections.get("대흉", "").strip():
-                continue
-        elif not content:
+        # 그룹 내 모든 섹션의 내용을 수집
+        combined_content = []
+        has_content = False
+
+        for key in section_keys:
+            content = sections.get(key, "").strip()
+            if content:
+                has_content = True
+                combined_content.append(content)
+
+        # 내용이 없으면 건너뛰기
+        if not has_content:
             continue
 
-        # 색상 가져오기
-        color = section_colors.get(key, ("blue", "blue"))
+        # 섹션 ID 생성 (한글 제목을 그대로 사용)
+        section_id = display_title.replace(" ", "-")
 
         html += f"""
             <!-- 섹션: {display_title} -->
-            <section class="mb-10">
-                <h2 class="text-2xl font-semibold text-{color[0]}-700 border-b-2 border-{color[1]}-100 pb-3 mb-6">
+            <section id="section-{section_id}" class="mb-10">
+                <h2 class="text-2xl font-semibold text-{color}-700 border-b-2 border-{color}-100 pb-3 mb-6">
                     {display_title}
                 </h2>
                 """
 
-        # 월별운은 특별 처리 (그리드 레이아웃)
-        if key == "월별운":
+        # 월별운세는 특별 처리 (그리드 레이아웃)
+        if display_title == "월별운세":
             # 월별 정보 파싱
+            content = combined_content[0] if combined_content else ""
             months = []
             lines = content.split('\n')
             current_month = None
@@ -450,8 +499,39 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                 html += f'                        <p class="text-base text-gray-700 leading-relaxed">{month_data["text"]}</p>\n'
                 html += '                    </div>\n'
             html += '                </div>\n'
-        # 대길대흉 섹션 특별 처리
-        elif display_title == "대길대흉":
+        # 운의 흐름 섹션 특별 처리 (시기적운세, 대길, 대흉, 현재의길흉사, 운명뛰어넘기 포함)
+        elif display_title == "운의 흐름":
+            # 먼저 시기적운세 표시
+            sikijuk_content = sections.get("시기적운세", "").strip()
+            if sikijuk_content:
+                paragraphs = [p.strip() for p in sikijuk_content.split('\n\n') if p.strip()]
+                formatted_blocks = []
+                for para in paragraphs:
+                    lines = [l.strip() for l in para.split('\n') if l.strip()]
+                    if len(lines) == 0:
+                        continue
+                    if len(lines) > 1 and len(lines[0]) < 100:
+                        formatted_blocks.append({'type': 'titled', 'title': lines[0], 'paragraphs': lines[1:]})
+                    else:
+                        formatted_blocks.append({'type': 'plain', 'paragraphs': lines})
+
+                if formatted_blocks:
+                    html += '                <div class="space-y-6 mb-8">\n'
+                    for block in formatted_blocks:
+                        if block['type'] == 'titled':
+                            html += '                    <div>\n'
+                            html += f'                        <h3 class="text-xl font-bold text-gray-700 mb-2">{block["title"]}</h3>\n'
+                            for i, para in enumerate(block['paragraphs']):
+                                if i == 0:
+                                    html += f'                        <p class="text-base text-gray-700 leading-relaxed">{para}</p>\n'
+                                else:
+                                    html += f'                        <p class="text-base text-gray-700 leading-relaxed mt-4">{para}</p>\n'
+                            html += '                    </div>\n'
+                        else:
+                            for para in block['paragraphs']:
+                                html += f'                    <p class="text-base text-gray-700 leading-relaxed">{para}</p>\n'
+                    html += '                </div>\n'
+
             # 대길과 대흉 내용을 분리
             daegil_content = sections.get("대길", "").strip()
             daeheung_content = sections.get("대흉", "").strip()
@@ -518,10 +598,53 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
 
                 html += '                    </div>\n'
                 html += '                </div>\n'
+
+            # 현재의 길흉사와 운명 뛰어넘기 표시
+            gilheungsa_content = sections.get("현재의길흉사", "").strip()
+            unmyung_content = sections.get("운명뛰어넘기", "").strip()
+
+            remaining_content = []
+            if gilheungsa_content:
+                remaining_content.append(gilheungsa_content)
+            if unmyung_content:
+                remaining_content.append(unmyung_content)
+
+            if remaining_content:
+                full_content = '\n\n'.join(remaining_content)
+                paragraphs = [p.strip() for p in full_content.split('\n\n') if p.strip()]
+                formatted_blocks = []
+                for para in paragraphs:
+                    lines = [l.strip() for l in para.split('\n') if l.strip()]
+                    if len(lines) == 0:
+                        continue
+                    if len(lines) > 1 and len(lines[0]) < 100:
+                        formatted_blocks.append({'type': 'titled', 'title': lines[0], 'paragraphs': lines[1:]})
+                    else:
+                        formatted_blocks.append({'type': 'plain', 'paragraphs': lines})
+
+                if formatted_blocks:
+                    html += '                <div class="space-y-6 mt-8">\n'
+                    for block in formatted_blocks:
+                        if block['type'] == 'titled':
+                            html += '                    <div>\n'
+                            html += f'                        <h3 class="text-xl font-bold text-gray-700 mb-2">{block["title"]}</h3>\n'
+                            for i, para in enumerate(block['paragraphs']):
+                                if i == 0:
+                                    html += f'                        <p class="text-base text-gray-700 leading-relaxed">{para}</p>\n'
+                                else:
+                                    html += f'                        <p class="text-base text-gray-700 leading-relaxed mt-4">{para}</p>\n'
+                            html += '                    </div>\n'
+                        else:
+                            for para in block['paragraphs']:
+                                html += f'                    <p class="text-base text-gray-700 leading-relaxed">{para}</p>\n'
+                    html += '                </div>\n'
         else:
-            # 일반 섹션 처리
+            # 일반 섹션 처리 - 여러 섹션의 내용을 합쳐서 표시
+            # 합친 내용을 하나의 문자열로 결합
+            full_content = '\n\n'.join(combined_content)
+
             # 내용을 줄바꿈으로 분리
-            paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
+            paragraphs = [p.strip() for p in full_content.split('\n\n') if p.strip()]
 
             # 각 문단을 다시 줄바꿈으로 분리하여 제목과 내용 구분
             formatted_blocks = []
@@ -582,7 +705,11 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                             html += f'                    </p>\n'
                     else:
                         for para in block['paragraphs']:
-                            html += f'                    <p>\n'
+                            # 짧은 텍스트(100자 미만)는 볼드 처리
+                            if len(para) < 100 and not para.endswith('.') and not para.endswith('다'):
+                                html += f'                    <p class="font-bold text-gray-800">\n'
+                            else:
+                                html += f'                    <p>\n'
                             html += f'                        {para}\n'
                             html += f'                    </p>\n'
                 html += '                </div>\n'
