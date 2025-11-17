@@ -319,7 +319,7 @@ def generate_bujeok_prompt_single(base_prompt: str, img_b64: str, char_name: str
     prompt_text = f"""Create an artistic prompt to transform this character into a beautiful Korean talisman artwork (부적).
 
 Style Guidelines:
-1. Keep the character's original appearance intact (preserve face, hair, clothing, colors)
+1. Maintain the character's identity, but have them strike a pose that suits a mysterious and hopeful atmosphere.
 2. Add traditional Korean decorative elements around the character:
    - Ornate red and gold decorative borders
    - Mystical Korean geometric patterns and symbols
