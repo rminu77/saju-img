@@ -316,25 +316,26 @@ def generate_images(
 
 def generate_bujeok_prompt_single(base_prompt: str, img_b64: str, char_name: str, openai_client: OpenAI):
     """단일 부적 프롬프트를 생성하는 함수 (병렬 처리용)"""
-    prompt_text = f"""Analyze this character image and create a detailed prompt for a 3D Korean talisman artwork.
+    prompt_text = f"""Create an artistic prompt to transform this character into a beautiful Korean talisman artwork (부적).
 
-Base concept: {base_prompt}
+Style Guidelines:
+1. Keep the character's original appearance intact (preserve face, hair, clothing, colors)
+2. Add traditional Korean decorative elements around the character:
+   - Ornate red and gold decorative borders
+   - Mystical Korean geometric patterns and symbols
+   - Traditional cloud motifs and auspicious imagery
+3. Background: Aged yellow parchment with natural weathered texture
+4. Art style: 3D rendered with soft cinematic lighting, depth, and elegant materials
+5. Composition: Vertical portrait format (9:16 aspect ratio)
+6. Atmosphere: Serene, auspicious, and celebratory
 
-Please describe:
-1. The character's visual appearance (hair style, clothing, colors, overall design)
-2. How to integrate the character into a vertical Korean talisman design
-3. 3D rendering style with cinematic lighting and realistic materials
-4. Traditional Korean decorative elements (red calligraphy borders, mystical patterns, decorative symbols)
-5. Aged yellow parchment texture background with weathered appearance
-6. Vertical composition (9:16 format)
+IMPORTANT RULES:
+- Preserve the character's identity and appearance
+- Add ONLY decorative visual elements (no readable text, letters, or words)
+- Focus on artistic embellishments and traditional Korean aesthetics
+- Create a harmonious blend of character and talisman design
 
-IMPORTANT: 
-- NO text, letters, words, or character names should appear in the image
-- Focus on visual decorative elements only
-- The character should be the central visual element
-- Traditional Korean artistic style with 3D depth
-
-Create a comprehensive English prompt for an AI image generator. Focus on visual details, artistic style, and atmosphere. Keep it professional and artistic."""
+Write a clear, positive, and artistic English prompt for an AI image editor. Emphasize beauty, tradition, and good fortune."""
 
     response = openai_client.chat.completions.create(
         model="gpt-4.1-mini",
@@ -352,13 +353,15 @@ Create a comprehensive English prompt for an AI image generator. Focus on visual
 
 def generate_bujeok_image_single(prompt: str, image_path: str, openai_client: OpenAI):
     """프롬프트로 단일 부적 이미지를 생성하는 함수 (병렬 처리용)"""
-    # images.edit 대신 images.generate 사용 (안전 시스템 우회)
-    response = openai_client.images.generate(
-        model="gpt-image-1",
-        prompt=prompt,
-        n=1,
-        size="1024x1536"
-    )
+    # images.edit 사용하여 캐릭터 보존하면서 스타일 변경
+    with open(image_path, "rb") as img_file:
+        response = openai_client.images.edit(
+            model="gpt-image-1",
+            image=img_file,
+            prompt=prompt,
+            n=1,
+            size="1024x1536"
+        )
     
     if response.data:
         img_data = response.data[0]
@@ -1616,7 +1619,7 @@ if generate:
         valid_chars = [(name, path) for name, path in char_images if os.path.exists(path)]
         
         if valid_chars and locked_openai_client:
-            base_bujeok_prompt = "A traditional Korean bujeok (talisman) with decorative red patterns and mystical symbols on aged yellow paper, weathered appearance, NO TEXT OR LETTERS"
+            base_bujeok_prompt = "Transform into a beautiful Korean fortune talisman (부적) artwork with traditional decorative borders, auspicious patterns, ornate gold and red embellishments on aged parchment background. Preserve the character's appearance while adding artistic Korean traditional elements. 3D style with elegant lighting."
             results = generate_bujeok_images(base_bujeok_prompt, valid_chars, locked_openai_client)
             return results, valid_chars
         return [], []
