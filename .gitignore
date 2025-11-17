@@ -1,5 +1,16 @@
 .DS_Store
 .env
 venv/
+.venv/
 __pycache__/
 *.rtfd/
+result/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/

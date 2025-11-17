@@ -314,15 +314,123 @@ def generate_images(
             images.append(None)
     return images
 
+def generate_bujeok_prompt_single(base_prompt: str, img_b64: str, char_name: str, openai_client: OpenAI):
+    """단일 부적 프롬프트를 생성하는 함수 (병렬 처리용)"""
+    prompt_text = f"""Create a 3D-style illustration prompt for a Korean bujeok (부적, talisman) featuring the character '{char_name}'.
+
+Base concept: {base_prompt}
+
+Requirements:
+- 3D rendered style with depth and dimension
+- The character should be integrated into the bujeok design
+- Traditional Korean talisman elements (red calligraphy, mystical symbols)
+- Aged yellow paper texture with weathered appearance
+- Vertical composition (9:16 aspect ratio)
+- Cinematic lighting and shadows
+- High detail and realistic materials
+
+Describe the scene in English for an image generation model, focusing on 3D elements, composition, lighting, and visual details."""
+
+    response = openai_client.chat.completions.create(
+        model="gpt-4.1-mini",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt_text},
+                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}}
+                ]
+            }
+        ]
+    )
+    return response.choices[0].message.content.strip()
+
+def generate_bujeok_image_single(prompt: str, image_path: str, openai_client: OpenAI):
+    """프롬프트로 단일 부적 이미지를 생성하는 함수 (병렬 처리용)"""
+    with open(image_path, "rb") as img_file:
+        response = openai_client.images.edit(
+            model="gpt-image-1",
+            image=img_file,
+            prompt=prompt,
+            n=1,
+            size="1024x1536"
+        )
+    
+    if response.data:
+        img_data = response.data[0]
+        if getattr(img_data, "url", None):
+            image_bytes = requests.get(img_data.url).content
+        else:
+            image_bytes = base64.b64decode(img_data.b64_json)
+        
+        img = Image.open(BytesIO(image_bytes)).convert("RGBA")
+        return img
+    return None
+
+def generate_bujeok_images(base_prompt: str, char_images: list, openai_client: OpenAI):
+    """
+    여러 캐릭터 이미지로 부적 이미지들을 병렬로 생성
+    char_images: [(name, path), ...] 형식의 리스트
+    반환: [(name, prompt, image), ...] 형식의 리스트
+    """
+    results = []
+    prompts = [""] * len(char_images)
+    images = [None] * len(char_images)
+    
+    # 1단계: 모든 프롬프트를 동시에 생성
+    with ThreadPoolExecutor(max_workers=len(char_images)) as executor:
+        future_to_index = {}
+        for i, (char_name, img_path) in enumerate(char_images):
+            # 이미지를 base64로 인코딩
+            with open(img_path, "rb") as f:
+                img_b64 = base64.b64encode(f.read()).decode()
+            
+            future = executor.submit(generate_bujeok_prompt_single, base_prompt, img_b64, char_name, openai_client)
+            future_to_index[future] = i
+        
+        # 완료된 프롬프트들 수집
+        for future in as_completed(future_to_index):
+            index = future_to_index[future]
+            try:
+                prompts[index] = future.result()
+            except Exception as exc:
+                st.warning(f'프롬프트 {index+1} 생성 중 오류: {exc}')
+                prompts[index] = None
+    
+    # 2단계: 생성된 프롬프트들로 모든 이미지를 동시에 생성
+    with ThreadPoolExecutor(max_workers=len(char_images)) as executor:
+        future_to_index = {}
+        for i, (char_name, img_path) in enumerate(char_images):
+            if prompts[i]:
+                future = executor.submit(generate_bujeok_image_single, prompts[i], img_path, openai_client)
+                future_to_index[future] = i
+        
+        # 완료된 이미지들 수집
+        for future in as_completed(future_to_index):
+            index = future_to_index[future]
+            try:
+                images[index] = future.result()
+            except Exception as exc:
+                st.warning(f'이미지 {index+1} 생성 중 오류: {exc}')
+                images[index] = None
+    
+    # 결과 조합
+    for i, (char_name, _) in enumerate(char_images):
+        results.append((char_name, prompts[i], images[i]))
+    
+    return results
+
 def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                   birth_time: str, sections: dict, image_base64: str,
-                  chongun_summary: str = "", bujeok_base64: str = "") -> str:
+                  chongun_summary: str = "", bujeok_images: list = None) -> str:
     """
     19개 섹션 내용을 받아서 HTML을 생성
     image_base64: base64로 인코딩된 이미지 데이터
     chongun_summary: 총운 3줄 요약
-    bujeok_base64: 부적 이미지 base64 데이터
+    bujeok_images: 부적 이미지 리스트 [(name, base64), ...]
     """
+    if bujeok_images is None:
+        bujeok_images = []
     html = f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -870,7 +978,7 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
         html += '            </section>\n'
 
     # 부적 이미지 섹션 추가 (맨 마지막)
-    if bujeok_base64:
+    if bujeok_images:
         html += """
             <!-- 부적 섹션 -->
             <section class="mb-10 mt-12">
@@ -878,9 +986,15 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                     <h2 class="text-2xl font-semibold text-gray-800 mb-6">
                         새해 복을 담은 부적
                     </h2>
-                    <div class="flex justify-center">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
 """
-        html += f'                        <img src="data:image/png;base64,{bujeok_base64}" alt="부적" class="rounded-lg shadow-xl" style="max-height: 600px; width: auto;">\n'
+        for char_name, img_base64 in bujeok_images:
+            html += f"""
+                        <div class="flex flex-col items-center">
+                            <h3 class="text-lg font-semibold text-gray-700 mb-3">{char_name}</h3>
+                            <img src="data:image/png;base64,{img_base64}" alt="{char_name} 부적" class="rounded-lg shadow-xl" style="max-height: 600px; width: auto;">
+                        </div>
+"""
         html += """                    </div>
                 </div>
             </section>
@@ -1511,40 +1625,54 @@ if generate:
     except Exception as e:
         pass  # 파일 저장 실패는 무시
 
-    # 부적 이미지 생성
-    bujeok_base64 = ""
-    with st.spinner("🧧 부적 이미지 생성 중 (gemini-2.5-flash-image-preview)..."):
-        try:
-            bujeok_prompt = "Create a vertical traditional Korean bujeok (부적, talisman) in 9:16 aspect ratio (768x1344 pixels). The bujeok should feature intricate red calligraphy on aged yellow paper with mystical symbols and characters. The paper should have a weathered, ancient appearance. The image should be isolated on a white background with no text, letters, or watermarks. The aspect ratio must be 9:16, tall and narrow like a traditional scroll."
-            
-            # Gemini로 부적 이미지 생성 (9:16 비율)
-            if gemini_client:
-                response = gemini_client.models.generate_content(
-                    model="gemini-2.5-flash-image-preview",
-                    contents=bujeok_prompt
-                )
+    # 부적 이미지 생성 (3개 캐릭터)
+    bujeok_results = []
+    img_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "img")
+    char_images = [
+        ("나나", os.path.join(img_dir, "nana.png")),
+        ("뱐냐", os.path.join(img_dir, "Bbanya.png")),
+        ("앙몬드", os.path.join(img_dir, "Angmond.png"))
+    ]
+    
+    # 캐릭터 이미지 파일 존재 여부 확인
+    valid_chars = [(name, path) for name, path in char_images if os.path.exists(path)]
+    
+    if valid_chars and locked_openai_client:
+        with st.spinner(f"🧧 부적 이미지 생성 중 (gpt-image-1, 3D 스타일)... (1단계: 프롬프트 생성 / 2단계: 이미지 생성)"):
+            try:
+                base_bujeok_prompt = "A traditional Korean bujeok (talisman) with intricate red calligraphy on aged yellow paper, mystical symbols, weathered appearance"
                 
-                # 이미지 추출
-                bujeok_img = None
-                if getattr(response, "candidates", None):
-                    parts = response.candidates[0].content.parts
-                    for part in parts:
-                        if getattr(part, "inline_data", None) and getattr(part.inline_data, "data", None):
-                            data = part.inline_data.data
-                            bujeok_img = Image.open(BytesIO(data))
-                            break
+                # 병렬 생성
+                results = generate_bujeok_images(base_bujeok_prompt, valid_chars, locked_openai_client)
                 
-                if bujeok_img:
-                    # base64로 인코딩
-                    bujeok_buffered = BytesIO()
-                    bujeok_img.save(bujeok_buffered, format="PNG")
-                    bujeok_base64 = base64.b64encode(bujeok_buffered.getvalue()).decode()
+                # 결과 표시 및 저장
+                st.markdown("#### 🧧 부적 이미지 (3D 스타일)")
+                cols = st.columns(len(results))
+                
+                for idx, (char_name, prompt, img) in enumerate(results):
+                    if img:
+                        # base64로 인코딩
+                        bujeok_buffered = BytesIO()
+                        img.save(bujeok_buffered, format="PNG")
+                        img_b64 = base64.b64encode(bujeok_buffered.getvalue()).decode()
+                        bujeok_results.append((char_name, img_b64))
+                        
+                        # 화면에 표시
+                        with cols[idx]:
+                            st.image(img, caption=f"{char_name} 부적", use_column_width=True)
+                            with st.expander("생성된 프롬프트"):
+                                st.text(prompt if prompt else "프롬프트 생성 실패")
+                
+                if not bujeok_results:
+                    st.warning("부적 이미지 생성에 실패했습니다.")
                     
-                    st.markdown("#### 🧧 부적 이미지")
-                    st.image(bujeok_img, caption="새해 부적", use_container_width=False, width=300)
-        except Exception as exc:
-            st.warning(f"부적 이미지 생성 중 오류 (계속 진행합니다): {exc}")
-            bujeok_base64 = ""
+            except Exception as exc:
+                st.warning(f"부적 이미지 생성 중 오류 (계속 진행합니다): {exc}")
+    else:
+        if not valid_chars:
+            st.info("img 폴더에 캐릭터 이미지(nana.png, Bbanya.png, Angmond.png)가 없습니다. 부적 생성을 건너뜁니다.")
+        elif not locked_openai_client:
+            st.warning("OpenAI 클라이언트가 초기화되지 않아 부적 생성을 건너뜁니다.")
 
     # HTML 생성 - 섹션 키 매핑 (입력창 키 -> HTML 표시용 키)
     with st.spinner("📄 HTML 생성 중..."):
@@ -1564,7 +1692,7 @@ if generate:
             sections=mapped_sections,
             image_base64=img_base64,
             chongun_summary=chongun_summary,
-            bujeok_base64=bujeok_base64
+            bujeok_images=bujeok_results
         )
 
         html_filename = f"{user_name}_tojeung_{timestamp}.html"
