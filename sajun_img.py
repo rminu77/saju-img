@@ -1490,19 +1490,13 @@ if generate:
     bujeok_base64 = ""
     with st.spinner("🧧 부적 이미지 생성 중 (gemini-2.5-flash-image-preview)..."):
         try:
-            bujeok_prompt = "A traditional Korean bujeok, intricate red calligraphy on aged yellow paper, isolated on a white background. --no text, letters, watermark"
+            bujeok_prompt = "Create a vertical traditional Korean bujeok (부적, talisman). The bujeok should feature intricate red calligraphy on aged yellow paper with mystical symbols and characters. The paper should have a weathered, ancient appearance. The image should be isolated on a white background with no text, letters, or watermarks. The aspect ratio should be tall and narrow like a traditional scroll."
             
             # Gemini로 부적 이미지 생성
             if gemini_client:
                 response = gemini_client.models.generate_content(
                     model="gemini-2.5-flash-image-preview",
-                    contents=f"Create a picture of: {bujeok_prompt}",
-                    config={
-                        "generation_config": {
-                            "response_modalities": ["IMAGE"],
-                            "aspect_ratio": "9:16"
-                        }
-                    }
+                    contents=bujeok_prompt
                 )
                 
                 # 이미지 추출
@@ -1516,6 +1510,11 @@ if generate:
                             break
                 
                 if bujeok_img:
+                    # 768x1344 비율로 리사이즈 (9:16)
+                    target_width = 768
+                    target_height = 1344
+                    bujeok_img = bujeok_img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+                    
                     # base64로 인코딩
                     bujeok_buffered = BytesIO()
                     bujeok_img.save(bujeok_buffered, format="PNG")
