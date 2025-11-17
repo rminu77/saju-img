@@ -534,6 +534,88 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                 html += f'                        <p class="text-base text-gray-700 leading-relaxed">{month_data["text"]}</p>\n'
                 html += '                    </div>\n'
             html += '                </div>\n'
+        # 테마 운세 섹션 특별 처리
+        elif display_title == "테마 운세":
+            # 각 운세별로 서브타이틀과 함께 표시
+            theme_groups = [
+                {
+                    "title": "재물운",
+                    "keys": ["재물운의특성", "재물모으는법", "재물손실막는법", "현재의재물운"]
+                },
+                {
+                    "title": "연애운",
+                    "keys": ["올해의연애운"]
+                },
+                {
+                    "title": "건강운",
+                    "keys": ["올해의건강운"]
+                },
+                {
+                    "title": "직장운",
+                    "keys": ["올해의직장운"]
+                },
+                {
+                    "title": "소망운",
+                    "keys": ["올해의소망운"]
+                },
+                {
+                    "title": "이사운",
+                    "keys": ["올해의여행이사운"]
+                }
+            ]
+            
+            for theme in theme_groups:
+                theme_title = theme["title"]
+                theme_keys = theme["keys"]
+                
+                # 해당 테마의 내용 수집
+                theme_content = []
+                for key in theme_keys:
+                    content = sections.get(key, "").strip()
+                    if content:
+                        theme_content.append(content)
+                
+                # 내용이 있으면 서브타이틀과 함께 표시
+                if theme_content:
+                    html += f'                <!-- {theme_title} -->\n'
+                    html += f'                <div class="mb-8">\n'
+                    html += f'                    <h3 class="text-xl font-semibold text-purple-600 mb-4">\n'
+                    html += f'                        {theme_title}\n'
+                    html += f'                    </h3>\n'
+                    
+                    # 내용 합치기
+                    full_theme_content = '\n\n'.join(theme_content)
+                    paragraphs = [p.strip() for p in full_theme_content.split('\n\n') if p.strip()]
+                    
+                    # 내용 포맷팅
+                    formatted_blocks = []
+                    for para in paragraphs:
+                        lines = [l.strip() for l in para.split('\n') if l.strip()]
+                        if len(lines) == 0:
+                            continue
+                        if len(lines) > 1 and len(lines[0]) < 100:
+                            formatted_blocks.append({'type': 'titled', 'title': lines[0], 'paragraphs': lines[1:]})
+                        else:
+                            formatted_blocks.append({'type': 'plain', 'paragraphs': lines})
+                    
+                    if formatted_blocks:
+                        html += '                    <div class="space-y-4">\n'
+                        for block in formatted_blocks:
+                            if block['type'] == 'titled':
+                                html += '                        <div>\n'
+                                html += f'                            <h4 class="text-lg font-semibold text-gray-700 mb-2">{block["title"]}</h4>\n'
+                                for i, para in enumerate(block['paragraphs']):
+                                    if i == 0:
+                                        html += f'                            <p class="text-base text-gray-700 leading-relaxed">{para}</p>\n'
+                                    else:
+                                        html += f'                            <p class="text-base text-gray-700 leading-relaxed mt-3">{para}</p>\n'
+                                html += '                        </div>\n'
+                            else:
+                                for para in block['paragraphs']:
+                                    html += f'                        <p class="text-base text-gray-700 leading-relaxed">{para}</p>\n'
+                        html += '                    </div>\n'
+                    
+                    html += '                </div>\n'
         # 운의 흐름 섹션 특별 처리 (시기적운세, 대길, 대흉, 현재의길흉사, 운명뛰어넘기 포함)
         elif display_title == "운의 흐름":
             # 먼저 시기적운세 표시
