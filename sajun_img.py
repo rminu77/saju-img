@@ -316,11 +316,12 @@ def generate_images(
 
 def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                   birth_time: str, sections: dict, image_base64: str,
-                  chongun_summary: str = "") -> str:
+                  chongun_summary: str = "", bujeok_base64: str = "") -> str:
     """
     19개 섹션 내용을 받아서 HTML을 생성
     image_base64: base64로 인코딩된 이미지 데이터
     chongun_summary: 총운 3줄 요약
+    bujeok_base64: 부적 이미지 base64 데이터
     """
     html = f"""<!DOCTYPE html>
 <html lang="ko">
@@ -867,6 +868,23 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                 html += '                </div>\n'
 
         html += '            </section>\n'
+
+    # 부적 이미지 섹션 추가 (맨 마지막)
+    if bujeok_base64:
+        html += """
+            <!-- 부적 섹션 -->
+            <section class="mb-10 mt-12">
+                <div class="text-center">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-6">
+                        새해 복을 담은 부적
+                    </h2>
+                    <div class="flex justify-center">
+"""
+        html += f'                        <img src="data:image/png;base64,{bujeok_base64}" alt="부적" class="rounded-lg shadow-xl" style="max-height: 600px; width: auto;">\n'
+        html += """                    </div>
+                </div>
+            </section>
+"""
 
     html += """        </div>
     </main>
@@ -1468,6 +1486,47 @@ if generate:
     except Exception as e:
         pass  # 파일 저장 실패는 무시
 
+    # 부적 이미지 생성
+    bujeok_base64 = ""
+    with st.spinner("🧧 부적 이미지 생성 중 (gemini-2.5-flash-image-preview)..."):
+        try:
+            bujeok_prompt = "A traditional Korean bujeok, intricate red calligraphy on aged yellow paper, isolated on a white background. --no text, letters, watermark"
+            
+            # Gemini로 부적 이미지 생성
+            if gemini_client:
+                response = gemini_client.models.generate_content(
+                    model="gemini-2.5-flash-image-preview",
+                    contents=f"Create a picture of: {bujeok_prompt}",
+                    config={
+                        "generation_config": {
+                            "response_modalities": ["IMAGE"],
+                            "aspect_ratio": "9:16"
+                        }
+                    }
+                )
+                
+                # 이미지 추출
+                bujeok_img = None
+                if getattr(response, "candidates", None):
+                    parts = response.candidates[0].content.parts
+                    for part in parts:
+                        if getattr(part, "inline_data", None) and getattr(part.inline_data, "data", None):
+                            data = part.inline_data.data
+                            bujeok_img = Image.open(BytesIO(data))
+                            break
+                
+                if bujeok_img:
+                    # base64로 인코딩
+                    bujeok_buffered = BytesIO()
+                    bujeok_img.save(bujeok_buffered, format="PNG")
+                    bujeok_base64 = base64.b64encode(bujeok_buffered.getvalue()).decode()
+                    
+                    st.markdown("#### 🧧 부적 이미지")
+                    st.image(bujeok_img, caption="새해 부적", use_container_width=False, width=300)
+        except Exception as exc:
+            st.warning(f"부적 이미지 생성 중 오류 (계속 진행합니다): {exc}")
+            bujeok_base64 = ""
+
     # HTML 생성 - 섹션 키 매핑 (입력창 키 -> HTML 표시용 키)
     with st.spinner("📄 HTML 생성 중..."):
         # 섹션 키를 HTML 생성 함수가 기대하는 형식으로 변환
@@ -1485,7 +1544,8 @@ if generate:
             birth_time=birth_time,
             sections=mapped_sections,
             image_base64=img_base64,
-            chongun_summary=chongun_summary
+            chongun_summary=chongun_summary,
+            bujeok_base64=bujeok_base64
         )
 
         html_filename = f"{user_name}_tojeung_{timestamp}.html"
