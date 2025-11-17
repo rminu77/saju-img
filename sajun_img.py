@@ -319,21 +319,8 @@ def generate_bujeok_prompt_single(base_prompt: str, img_b64: str, char_name: str
     prompt_text = f"""Create an artistic prompt to transform this character into a beautiful Korean talisman artwork (부적).
 
 Style Guidelines:
-1. Maintain the character's original appearance (face, hair, clothing, colors), but have them strike a pose that suits a mysterious and hopeful atmosphere.
-2. Add traditional Korean decorative elements around the character:
-   - Ornate red and gold decorative borders
-   - Mystical Korean geometric patterns and symbols
-   - Traditional cloud motifs and auspicious imagery
-3. Background: Aged yellow parchment with natural weathered texture
-4. Art style: 3D rendered with soft cinematic lighting, depth, and elegant materials
-5. Composition: Vertical portrait format (9:16 aspect ratio)
-6. Atmosphere: Serene, auspicious, and celebratory
-
-IMPORTANT RULES:
-- Preserve the character's identity and appearance
-- Add ONLY decorative visual elements (no readable text, letters, or words)
-- Focus on artistic embellishments and traditional Korean aesthetics
-- Create a harmonious blend of character and talisman design
+1. Create a vertical traditional Korean bujeok (부적, talisman) in 9:16 aspect ratio (768x1344 pixels). The bujeok should feature intricate red calligraphy on aged yellow paper with mystical symbols and characters. The paper should have a weathered, ancient appearance. The image should be isolated on a white background with no text, letters, or watermarks. The aspect ratio must be 9:16, tall and narrow like a traditional scroll.
+2. Art style: 3D rendered with soft cinematic lighting, depth, and elegant materials
 
 Write a clear, positive, and artistic English prompt for an AI image editor. Emphasize beauty, tradition, and good fortune."""
 
