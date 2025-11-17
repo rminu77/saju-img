@@ -1708,7 +1708,7 @@ if generate:
                 
                 # 화면에 표시
                 with cols[idx]:
-                    st.image(img, caption=f"{char_name} 부적", use_column_width=True)
+                    st.image(img, caption=f"{char_name} 부적", use_container_width=True)
                     with st.expander("생성된 프롬프트"):
                         st.text(prompt if prompt else "프롬프트 생성 실패")
         
