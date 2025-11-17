@@ -1000,13 +1000,19 @@ if uploaded_csv is not None:
                     st.session_state['birth_info_input'] = sample_data['birth_info']
                 if sample_data.get('sections'):
                     # 각 섹션의 text_area key에 직접 값 설정
+                    loaded_sections = []
                     for section_key, section_value in sample_data['sections'].items():
                         st.session_state[section_key] = section_value
+                        loaded_sections.append(section_key)
 
                 # 처리 완료 표시
                 st.session_state['last_processed_csv'] = csv_file_id
+                st.session_state['loaded_sections_debug'] = loaded_sections
 
                 st.success(f"✅ CSV 파일에서 데이터를 불러왔습니다! (이름: {sample_data.get('name')}, 섹션: {len(sample_data.get('sections', {}))}개)")
+                with st.expander("🔍 로드된 섹션 키 확인"):
+                    for key in loaded_sections[:5]:
+                        st.write(f"• {key}")
                 st.rerun()
 
         except Exception as e:
@@ -1329,22 +1335,39 @@ section_titles = [
     "대흉(새해신수)", "현재의길흉사(새해신수)", "운명뛰어넘기(새해신수)"
 ]
 
+# 앱 시작 시 섹션 초기화 (최초 실행 시에만)
+if 'sections_initialized' not in st.session_state:
+    for title in section_titles:
+        if title not in st.session_state:
+            st.session_state[title] = ""
+    st.session_state['sections_initialized'] = True
+
 # 디버깅: 세션 상태 확인
 debug_sections = [key for key in section_titles if key in st.session_state and st.session_state[key]]
 if debug_sections:
     st.info(f"🔍 세션 상태에 데이터가 있는 섹션: {len(debug_sections)}개")
     with st.expander("세션 상태 디버그 정보"):
-        for key in debug_sections[:3]:
+        for key in debug_sections[:5]:
             st.write(f"• {key}: {len(st.session_state[key])} 문자")
+
+# CSV 로드 디버깅
+if 'loaded_sections_debug' in st.session_state:
+    loaded = st.session_state['loaded_sections_debug']
+    st.info(f"📥 CSV에서 로드된 섹션: {len(loaded)}개")
+    with st.expander("CSV 로드 디버그 정보"):
+        st.write("CSV에서 로드된 키:")
+        for key in loaded[:5]:
+            st.write(f"• {key}")
+        st.write("\n코드에서 기대하는 키 (처음 5개):")
+        for key in section_titles[:5]:
+            st.write(f"• {key}")
 
 # 19개 입력창
 sections = {}
 
 for title in section_titles:
-    # key만 사용하면 세션 상태가 자동으로 연결됩니다
-    # 세션 상태에 값이 없으면 빈 문자열이 기본값으로 사용됩니다
-    if title not in st.session_state:
-        st.session_state[title] = ""
+    # key를 사용하면 세션 상태와 자동으로 연결됩니다
+    # 세션 상태에 값이 있으면 자동으로 표시되고, 없으면 빈 문자열이 기본값입니다
     sections[title] = st.text_area(title, height=100, key=title)
 
 system_prompt_input = st.text_area(
