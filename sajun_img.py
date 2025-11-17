@@ -1597,43 +1597,79 @@ if generate:
 
     # 사주 이미지 생성 함수
     def generate_saju_image():
-        imgs = generate_images(
-            final_prompt,
-            num_images=1,
-            provider="openai",
-            gemini_client=None,
-            openai_client=locked_openai_client,
-        )
-        valid = [i for i in imgs if i is not None]
-        return valid[0] if valid else None
+        try:
+            st.write("🎨 사주 이미지 생성 시작...")
+            imgs = generate_images(
+                final_prompt,
+                num_images=1,
+                provider="openai",
+                gemini_client=None,
+                openai_client=locked_openai_client,
+            )
+            valid = [i for i in imgs if i is not None]
+            if valid:
+                st.write("✅ 사주 이미지 생성 완료")
+            else:
+                st.write("❌ 사주 이미지 생성 실패")
+            return valid[0] if valid else None
+        except Exception as e:
+            st.error(f"사주 이미지 생성 중 오류: {e}")
+            return None
 
     # 부적 이미지 생성 함수
     def generate_bujeok_images_wrapper():
-        img_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "img")
-        char_images = [
-            ("나나", os.path.join(img_dir, "nana.png")),
-            ("뱐냐", os.path.join(img_dir, "Bbanya.png")),
-            ("앙몬드", os.path.join(img_dir, "Angmond.png"))
-        ]
-        
-        valid_chars = [(name, path) for name, path in char_images if os.path.exists(path)]
-        
-        if valid_chars and locked_openai_client:
-            base_bujeok_prompt = "Transform into a beautiful Korean fortune talisman (부적) artwork with traditional decorative borders, auspicious patterns, ornate gold and red embellishments on aged parchment background. Preserve the character's appearance while adding artistic Korean traditional elements. 3D style with elegant lighting."
-            results = generate_bujeok_images(base_bujeok_prompt, valid_chars, locked_openai_client)
-            return results, valid_chars
-        return [], []
+        try:
+            st.write("🧧 부적 이미지 생성 시작...")
+            img_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "img")
+            char_images = [
+                ("나나", os.path.join(img_dir, "nana.png")),
+                ("뱐냐", os.path.join(img_dir, "Bbanya.png")),
+                ("앙몬드", os.path.join(img_dir, "Angmond.png"))
+            ]
+            
+            valid_chars = [(name, path) for name, path in char_images if os.path.exists(path)]
+            st.write(f"📂 발견된 캐릭터 이미지: {len(valid_chars)}개")
+            
+            if valid_chars and locked_openai_client:
+                base_bujeok_prompt = "Transform into a beautiful Korean fortune talisman (부적) artwork with traditional decorative borders, auspicious patterns, ornate gold and red embellishments on aged parchment background. Preserve the character's appearance while adding artistic Korean traditional elements. 3D style with elegant lighting."
+                results = generate_bujeok_images(base_bujeok_prompt, valid_chars, locked_openai_client)
+                st.write(f"✅ 부적 이미지 생성 완료: {len([r for r in results if r[2] is not None])}개")
+                return results, valid_chars
+            return [], []
+        except Exception as e:
+            st.error(f"부적 이미지 생성 중 오류: {e}")
+            import traceback
+            st.error(traceback.format_exc())
+            return [], []
 
     # 사주 이미지와 부적 이미지를 동시에 생성
+    st.write("⏳ 병렬 처리 시작...")
     with st.spinner("🎨 사주 이미지와 부적 이미지를 동시에 생성 중... (병렬 처리)"):
         with ThreadPoolExecutor(max_workers=2) as executor:
             # 두 작업을 동시에 시작
             saju_future = executor.submit(generate_saju_image)
             bujeok_future = executor.submit(generate_bujeok_images_wrapper)
             
-            # 결과 대기
-            saju_img = saju_future.result()
-            bujeok_results_raw, valid_chars = bujeok_future.result()
+            # 결과 대기 (타임아웃 5분)
+            try:
+                saju_img = saju_future.result(timeout=300)
+                st.write("✓ 사주 이미지 처리 완료")
+            except TimeoutError:
+                st.error("사주 이미지 생성 타임아웃 (5분 초과)")
+                saju_img = None
+            except Exception as e:
+                st.error(f"사주 이미지 처리 중 오류: {e}")
+                saju_img = None
+            
+            try:
+                bujeok_results_raw, valid_chars = bujeok_future.result(timeout=300)
+                st.write("✓ 부적 이미지 처리 완료")
+            except TimeoutError:
+                st.error("부적 이미지 생성 타임아웃 (5분 초과)")
+                bujeok_results_raw, valid_chars = [], []
+            except Exception as e:
+                st.error(f"부적 이미지 처리 중 오류: {e}")
+                bujeok_results_raw, valid_chars = [], []
 
     # 사주 이미지 처리
     if not saju_img:
