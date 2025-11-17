@@ -716,19 +716,10 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                 html += '                    </div>\n'
                 html += '                </div>\n'
 
-            # 현재의 길흉사와 운명 뛰어넘기 표시
+            # 현재의 길흉사 표시
             gilheungsa_content = sections.get("현재의길흉사", "").strip()
-            unmyung_content = sections.get("운명뛰어넘기", "").strip()
-
-            remaining_content = []
             if gilheungsa_content:
-                remaining_content.append(gilheungsa_content)
-            if unmyung_content:
-                remaining_content.append(unmyung_content)
-
-            if remaining_content:
-                full_content = '\n\n'.join(remaining_content)
-                paragraphs = [p.strip() for p in full_content.split('\n\n') if p.strip()]
+                paragraphs = [p.strip() for p in gilheungsa_content.split('\n\n') if p.strip()]
                 formatted_blocks = []
                 for para in paragraphs:
                     lines = [l.strip() for l in para.split('\n') if l.strip()]
@@ -755,6 +746,45 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                             for para in block['paragraphs']:
                                 html += f'                    <p class="text-base text-gray-700 leading-relaxed">{para}</p>\n'
                     html += '                </div>\n'
+
+            # 운명 뛰어넘기 - 서브타이틀로 표시
+            unmyung_content = sections.get("운명뛰어넘기", "").strip()
+            if unmyung_content:
+                html += '                <!-- 운명 뛰어넘기 -->\n'
+                html += '                <div class="mt-8">\n'
+                html += '                    <h3 class="text-xl font-semibold text-red-600 mb-4">\n'
+                html += '                        운명 뛰어넘기\n'
+                html += '                    </h3>\n'
+                
+                paragraphs = [p.strip() for p in unmyung_content.split('\n\n') if p.strip()]
+                formatted_blocks = []
+                for para in paragraphs:
+                    lines = [l.strip() for l in para.split('\n') if l.strip()]
+                    if len(lines) == 0:
+                        continue
+                    if len(lines) > 1 and len(lines[0]) < 100:
+                        formatted_blocks.append({'type': 'titled', 'title': lines[0], 'paragraphs': lines[1:]})
+                    else:
+                        formatted_blocks.append({'type': 'plain', 'paragraphs': lines})
+
+                if formatted_blocks:
+                    html += '                    <div class="space-y-4">\n'
+                    for block in formatted_blocks:
+                        if block['type'] == 'titled':
+                            html += '                        <div>\n'
+                            html += f'                            <h4 class="text-lg font-semibold text-gray-700 mb-2">{block["title"]}</h4>\n'
+                            for i, para in enumerate(block['paragraphs']):
+                                if i == 0:
+                                    html += f'                            <p class="text-base text-gray-700 leading-relaxed">{para}</p>\n'
+                                else:
+                                    html += f'                            <p class="text-base text-gray-700 leading-relaxed mt-3">{para}</p>\n'
+                            html += '                        </div>\n'
+                        else:
+                            for para in block['paragraphs']:
+                                html += f'                        <p class="text-base text-gray-700 leading-relaxed">{para}</p>\n'
+                    html += '                    </div>\n'
+                
+                html += '                </div>\n'
         else:
             # 일반 섹션 처리 - 여러 섹션의 내용을 합쳐서 표시
             # 합친 내용을 하나의 문자열로 결합
