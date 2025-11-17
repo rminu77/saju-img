@@ -379,14 +379,8 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                     <div class="overflow-x-auto pb-2">
                         <div class="flex gap-3 min-w-max">
                             <a href="#section-총운" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-full font-medium hover:bg-blue-200 transition whitespace-nowrap">총운</a>
-                            <a href="#section-그림으로-보는-새해운세" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-full font-medium hover:bg-blue-200 transition whitespace-nowrap">그림</a>
-                            <a href="#section-새해신수" class="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-full font-medium hover:bg-indigo-200 transition whitespace-nowrap">새해신수</a>
-                            <a href="#section-재물운" class="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-full font-medium hover:bg-yellow-200 transition whitespace-nowrap">재물운</a>
-                            <a href="#section-연애운" class="px-4 py-2 bg-pink-100 text-pink-700 rounded-full font-medium hover:bg-pink-200 transition whitespace-nowrap">연애운</a>
-                            <a href="#section-건강운" class="px-4 py-2 bg-green-100 text-green-700 rounded-full font-medium hover:bg-green-200 transition whitespace-nowrap">건강운</a>
-                            <a href="#section-직장운" class="px-4 py-2 bg-purple-100 text-purple-700 rounded-full font-medium hover:bg-purple-200 transition whitespace-nowrap">직장운</a>
-                            <a href="#section-소망운" class="px-4 py-2 bg-cyan-100 text-cyan-700 rounded-full font-medium hover:bg-cyan-200 transition whitespace-nowrap">소망운</a>
-                            <a href="#section-이사운" class="px-4 py-2 bg-teal-100 text-teal-700 rounded-full font-medium hover:bg-teal-200 transition whitespace-nowrap">이사운</a>
+                            <a href="#section-기운흐름" class="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-full font-medium hover:bg-indigo-200 transition whitespace-nowrap">기운흐름</a>
+                            <a href="#section-테마-운세" class="px-4 py-2 bg-purple-100 text-purple-700 rounded-full font-medium hover:bg-purple-200 transition whitespace-nowrap">테마 운세</a>
                             <a href="#section-월별운세" class="px-4 py-2 bg-orange-100 text-orange-700 rounded-full font-medium hover:bg-orange-200 transition whitespace-nowrap">월별운세</a>
                             <a href="#section-운의-흐름" class="px-4 py-2 bg-red-100 text-red-700 rounded-full font-medium hover:bg-red-200 transition whitespace-nowrap">운의 흐름</a>
                         </div>
@@ -412,39 +406,15 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
             "color": "blue"
         },
         {
-            "title": "새해신수",
+            "title": "기운흐름",
             "sections": ["일년신수(전반기", "일년신수(후반기"],
             "color": "indigo"
         },
         {
-            "title": "재물운",
-            "sections": ["재물운의특성", "재물모으는법", "재물손실막는법", "현재의재물운"],
-            "color": "yellow"
-        },
-        {
-            "title": "연애운",
-            "sections": ["올해의연애운"],
-            "color": "pink"
-        },
-        {
-            "title": "건강운",
-            "sections": ["올해의건강운"],
-            "color": "green"
-        },
-        {
-            "title": "직장운",
-            "sections": ["올해의직장운"],
+            "title": "테마 운세",
+            "sections": ["재물운의특성", "재물모으는법", "재물손실막는법", "현재의재물운", 
+                        "올해의연애운", "올해의건강운", "올해의직장운", "올해의소망운", "올해의여행이사운"],
             "color": "purple"
-        },
-        {
-            "title": "소망운",
-            "sections": ["올해의소망운"],
-            "color": "cyan"
-        },
-        {
-            "title": "이사운",
-            "sections": ["올해의여행이사운"],
-            "color": "teal"
         },
         {
             "title": "월별운세",
@@ -472,8 +442,8 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
 
             <!-- 섹션: 그림 -->
             <section class="mb-10">
-                <p class="text-center text-lg font-bold text-gray-800 mb-6">
-                    {user_name} 님의 신년운세를 그림으로 그려봤어요.
+                <p class="text-center text-lg font-medium text-gray-600 mb-6">
+                    이미지로 보는 내 사주
                 </p>
                 <div class="flex justify-center">
                     <img src="data:image/png;base64,{image_base64}" alt="새해운세 이미지" class="rounded-lg shadow-lg max-w-full h-auto">
@@ -509,6 +479,14 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                     {display_title}
                 </h2>
                 """
+
+        # 총운 섹션: 서브 타이틀 추가
+        if display_title == "총운":
+            html += """
+                <p class="text-lg font-medium text-gray-600 mb-6">
+                    올해의 주제와 흐름
+                </p>
+"""
 
         # 총운 섹션 특별 처리 (3줄 요약 박스 추가)
         if display_title == "총운" and chongun_summary:
@@ -699,6 +677,11 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
             # 일반 섹션 처리 - 여러 섹션의 내용을 합쳐서 표시
             # 합친 내용을 하나의 문자열로 결합
             full_content = '\n\n'.join(combined_content)
+            
+            # 기운흐름 섹션: 제목 치환
+            if display_title == "기운흐름":
+                full_content = full_content.replace("이 사주 일년신수 (전반기) 총평", "전반기 기운의 변화")
+                full_content = full_content.replace("이 사주 일년신수 (후반기) 총평", "후반기 기운의 변화")
 
             # 내용을 줄바꿈으로 분리
             paragraphs = [p.strip() for p in full_content.split('\n\n') if p.strip()]
