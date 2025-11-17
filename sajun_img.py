@@ -1590,9 +1590,10 @@ if generate:
         st.stop()
 
     final_prompt = prompt
+    timestamp = int(time.time())
 
-    # 이미지 생성
-    with st.spinner("🎨 이미지 생성 중..."):
+    # 사주 이미지 생성 함수
+    def generate_saju_image():
         imgs = generate_images(
             final_prompt,
             num_images=1,
@@ -1600,83 +1601,84 @@ if generate:
             gemini_client=None,
             openai_client=locked_openai_client,
         )
+        valid = [i for i in imgs if i is not None]
+        return valid[0] if valid else None
 
-    # 이미지 처리
-    valid = [i for i in imgs if i is not None]
-    if not valid:
-        st.error("이미지 생성에 실패했습니다.")
+    # 부적 이미지 생성 함수
+    def generate_bujeok_images_wrapper():
+        img_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "img")
+        char_images = [
+            ("나나", os.path.join(img_dir, "nana.png")),
+            ("뱐냐", os.path.join(img_dir, "Bbanya.png")),
+            ("앙몬드", os.path.join(img_dir, "Angmond.png"))
+        ]
+        
+        valid_chars = [(name, path) for name, path in char_images if os.path.exists(path)]
+        
+        if valid_chars and locked_openai_client:
+            base_bujeok_prompt = "A traditional Korean bujeok (talisman) with decorative red patterns and mystical symbols on aged yellow paper, weathered appearance, NO TEXT OR LETTERS"
+            results = generate_bujeok_images(base_bujeok_prompt, valid_chars, locked_openai_client)
+            return results, valid_chars
+        return [], []
+
+    # 사주 이미지와 부적 이미지를 동시에 생성
+    with st.spinner("🎨 사주 이미지와 부적 이미지를 동시에 생성 중... (병렬 처리)"):
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            # 두 작업을 동시에 시작
+            saju_future = executor.submit(generate_saju_image)
+            bujeok_future = executor.submit(generate_bujeok_images_wrapper)
+            
+            # 결과 대기
+            saju_img = saju_future.result()
+            bujeok_results_raw, valid_chars = bujeok_future.result()
+
+    # 사주 이미지 처리
+    if not saju_img:
+        st.error("사주 이미지 생성에 실패했습니다.")
         st.stop()
 
-    # 이미지 표시
-    st.markdown("#### 🎨 생성된 이미지")
-    img = valid[0]
-    st.image(img, caption="새해운세 이미지", use_container_width=True)
+    st.markdown("#### 🎨 생성된 사주 이미지")
+    st.image(saju_img, caption="새해운세 이미지", use_container_width=True)
 
     # 이미지를 base64로 인코딩
-    img = valid[0]
     buffered = BytesIO()
-    img.save(buffered, format="PNG")
+    saju_img.save(buffered, format="PNG")
     img_base64 = base64.b64encode(buffered.getvalue()).decode()
 
     # 이미지 파일도 저장 (로컬 백업용)
-    timestamp = int(time.time())
     image_filename = f"saju_generated_{timestamp}.png"
-
-    # 파일 저장 시도 (실패해도 계속 진행)
     try:
         image_path = os.path.join(RESULT_DIR, image_filename)
-        img.save(image_path, format="PNG")
+        saju_img.save(image_path, format="PNG")
     except Exception as e:
         pass  # 파일 저장 실패는 무시
 
-    # 부적 이미지 생성 (3개 캐릭터)
+    # 부적 이미지 처리
     bujeok_results = []
-    img_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "img")
-    char_images = [
-        ("나나", os.path.join(img_dir, "nana.png")),
-        ("뱐냐", os.path.join(img_dir, "Bbanya.png")),
-        ("앙몬드", os.path.join(img_dir, "Angmond.png"))
-    ]
-    
-    # 캐릭터 이미지 파일 존재 여부 확인
-    valid_chars = [(name, path) for name, path in char_images if os.path.exists(path)]
-    
-    if valid_chars and locked_openai_client:
-        with st.spinner(f"🧧 부적 이미지 생성 중 (gpt-image-1, 3D 스타일)... (1단계: 프롬프트 생성 / 2단계: 이미지 생성)"):
-            try:
-                base_bujeok_prompt = "A traditional Korean bujeok (talisman) with decorative red patterns and mystical symbols on aged yellow paper, weathered appearance, NO TEXT OR LETTERS"
+    if bujeok_results_raw:
+        st.markdown("#### 🧧 부적 이미지 (3D 스타일)")
+        cols = st.columns(len(bujeok_results_raw))
+        
+        for idx, (char_name, prompt, img) in enumerate(bujeok_results_raw):
+            if img:
+                # base64로 인코딩
+                bujeok_buffered = BytesIO()
+                img.save(bujeok_buffered, format="PNG")
+                img_b64 = base64.b64encode(bujeok_buffered.getvalue()).decode()
+                bujeok_results.append((char_name, img_b64))
                 
-                # 병렬 생성
-                results = generate_bujeok_images(base_bujeok_prompt, valid_chars, locked_openai_client)
-                
-                # 결과 표시 및 저장
-                st.markdown("#### 🧧 부적 이미지 (3D 스타일)")
-                cols = st.columns(len(results))
-                
-                for idx, (char_name, prompt, img) in enumerate(results):
-                    if img:
-                        # base64로 인코딩
-                        bujeok_buffered = BytesIO()
-                        img.save(bujeok_buffered, format="PNG")
-                        img_b64 = base64.b64encode(bujeok_buffered.getvalue()).decode()
-                        bujeok_results.append((char_name, img_b64))
-                        
-                        # 화면에 표시
-                        with cols[idx]:
-                            st.image(img, caption=f"{char_name} 부적", use_column_width=True)
-                            with st.expander("생성된 프롬프트"):
-                                st.text(prompt if prompt else "프롬프트 생성 실패")
-                
-                if not bujeok_results:
-                    st.warning("부적 이미지 생성에 실패했습니다.")
-                    
-            except Exception as exc:
-                st.warning(f"부적 이미지 생성 중 오류 (계속 진행합니다): {exc}")
+                # 화면에 표시
+                with cols[idx]:
+                    st.image(img, caption=f"{char_name} 부적", use_column_width=True)
+                    with st.expander("생성된 프롬프트"):
+                        st.text(prompt if prompt else "프롬프트 생성 실패")
+        
+        if not bujeok_results:
+            st.warning("부적 이미지 생성에 실패했습니다.")
+    elif not valid_chars:
+        st.info("img 폴더에 캐릭터 이미지(nana.png, Bbanya.png, Angmond.png)가 없습니다. 부적 생성을 건너뜁니다.")
     else:
-        if not valid_chars:
-            st.info("img 폴더에 캐릭터 이미지(nana.png, Bbanya.png, Angmond.png)가 없습니다. 부적 생성을 건너뜁니다.")
-        elif not locked_openai_client:
-            st.warning("OpenAI 클라이언트가 초기화되지 않아 부적 생성을 건너뜁니다.")
+        st.warning("부적 이미지 생성 중 오류가 발생했습니다.")
 
     # HTML 생성 - 섹션 키 매핑 (입력창 키 -> HTML 표시용 키)
     with st.spinner("📄 HTML 생성 중..."):
