@@ -1341,9 +1341,11 @@ if debug_sections:
 sections = {}
 
 for title in section_titles:
-    # 세션 상태에서 값을 가져와서 value로 전달 (key만으로는 자동 반영 안됨!)
-    default_value = st.session_state.get(title, "")
-    sections[title] = st.text_area(title, value=default_value, height=100, key=title)
+    # key만 사용하면 세션 상태가 자동으로 연결됩니다
+    # 세션 상태에 값이 없으면 빈 문자열이 기본값으로 사용됩니다
+    if title not in st.session_state:
+        st.session_state[title] = ""
+    sections[title] = st.text_area(title, height=100, key=title)
 
 system_prompt_input = st.text_area(
     "이미지 생성 시스템 프롬프트",
@@ -1490,9 +1492,9 @@ if generate:
     bujeok_base64 = ""
     with st.spinner("🧧 부적 이미지 생성 중 (gemini-2.5-flash-image-preview)..."):
         try:
-            bujeok_prompt = "Create a vertical traditional Korean bujeok (부적, talisman). The bujeok should feature intricate red calligraphy on aged yellow paper with mystical symbols and characters. The paper should have a weathered, ancient appearance. The image should be isolated on a white background with no text, letters, or watermarks. The aspect ratio should be tall and narrow like a traditional scroll."
+            bujeok_prompt = "Create a vertical traditional Korean bujeok (부적, talisman) in 9:16 aspect ratio (768x1344 pixels). The bujeok should feature intricate red calligraphy on aged yellow paper with mystical symbols and characters. The paper should have a weathered, ancient appearance. The image should be isolated on a white background with no text, letters, or watermarks. The aspect ratio must be 9:16, tall and narrow like a traditional scroll."
             
-            # Gemini로 부적 이미지 생성
+            # Gemini로 부적 이미지 생성 (9:16 비율)
             if gemini_client:
                 response = gemini_client.models.generate_content(
                     model="gemini-2.5-flash-image-preview",
@@ -1510,11 +1512,6 @@ if generate:
                             break
                 
                 if bujeok_img:
-                    # 768x1344 비율로 리사이즈 (9:16)
-                    target_width = 768
-                    target_height = 1344
-                    bujeok_img = bujeok_img.resize((target_width, target_height), Image.Resampling.LANCZOS)
-                    
                     # base64로 인코딩
                     bujeok_buffered = BytesIO()
                     bujeok_img.save(bujeok_buffered, format="PNG")
