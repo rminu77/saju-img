@@ -318,18 +318,23 @@ def generate_bujeok_prompt_single(base_prompt: str, img_b64: str, char_name: str
     """단일 부적 프롬프트를 생성하는 함수 (병렬 처리용)"""
     prompt_text = f"""Analyze this character image and create a detailed prompt for a 3D Korean talisman artwork.
 
-The character name is '{char_name}'.
 Base concept: {base_prompt}
 
 Please describe:
-1. The character's appearance (hair, clothing, colors, style)
+1. The character's visual appearance (hair style, clothing, colors, overall design)
 2. How to integrate the character into a vertical Korean talisman design
-3. 3D rendering style with lighting and materials
-4. Traditional Korean decorative elements (red calligraphy borders, mystical patterns)
-5. Aged yellow parchment texture background
-6. Composition and layout (vertical 9:16 format)
+3. 3D rendering style with cinematic lighting and realistic materials
+4. Traditional Korean decorative elements (red calligraphy borders, mystical patterns, decorative symbols)
+5. Aged yellow parchment texture background with weathered appearance
+6. Vertical composition (9:16 format)
 
-Create a comprehensive English prompt for an AI image generator that will produce a 3D-styled Korean talisman artwork featuring this character. Focus on visual details, artistic style, and atmosphere. Keep the tone professional and artistic."""
+IMPORTANT: 
+- NO text, letters, words, or character names should appear in the image
+- Focus on visual decorative elements only
+- The character should be the central visual element
+- Traditional Korean artistic style with 3D depth
+
+Create a comprehensive English prompt for an AI image generator. Focus on visual details, artistic style, and atmosphere. Keep it professional and artistic."""
 
     response = openai_client.chat.completions.create(
         model="gpt-4.1-mini",
@@ -1639,7 +1644,7 @@ if generate:
     if valid_chars and locked_openai_client:
         with st.spinner(f"🧧 부적 이미지 생성 중 (gpt-image-1, 3D 스타일)... (1단계: 프롬프트 생성 / 2단계: 이미지 생성)"):
             try:
-                base_bujeok_prompt = "A traditional Korean bujeok (talisman) with intricate red calligraphy on aged yellow paper, mystical symbols, weathered appearance"
+                base_bujeok_prompt = "A traditional Korean bujeok (talisman) with decorative red patterns and mystical symbols on aged yellow paper, weathered appearance, NO TEXT OR LETTERS"
                 
                 # 병렬 생성
                 results = generate_bujeok_images(base_bujeok_prompt, valid_chars, locked_openai_client)
