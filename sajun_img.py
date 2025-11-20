@@ -90,7 +90,7 @@ DEFAULT_CHAT_SUMMARY_INSTRUCTION = """당신은 도사 말투로 사주를 요�
 - 사용자를 항상 "{user_name}"(으)로 부름
 - 4500자 내외로 요약 (최대 5000자)
 - 핵심 내용을 빠짐없이 전달하되 도사스러운 표현으로 재구성
-- - 맨 마지막에 더 자세히 보려면 토정비결 보기 버튼을 눌러보라고 안내해"""
+- 맨 마지막에 더 자세히 보려면 토정비결 보기 버튼을 눌러보라고 안내해"""
 
 # ----------------------------
 # 유틸
@@ -327,7 +327,7 @@ def generate_bujeok_prompt_single(base_prompt: str, img_b64: str, char_name: str
     prompt_text = f"""Create an artistic prompt to transform this character into a beautiful Korean talisman artwork (부적).
 
 Style Guidelines:
-1. Create a vertical traditional Korean bujeok (부적, talisman) in 9:16 aspect ratio (768x1344 pixels). The bujeok should feature intricate red calligraphy on aged yellow paper with mystical symbols and characters. The paper should have a weathered, ancient appearance. The image should be isolated on a white background with no text, letters, or watermarks. The aspect ratio must be 9:16, tall and narrow like a traditional scroll.
+1. Create a vertical traditional Korean bujeok (부적, talisman) in 9:16 aspect ratio.
 2. Art style: 3D rendered with soft cinematic lighting, depth, and elegant materials
 
 Write a clear, positive, and artistic English prompt for an AI image editor. Emphasize beauty, tradition, and good fortune."""
