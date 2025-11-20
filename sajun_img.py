@@ -383,15 +383,10 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
     chongun_summary: 총운 3줄 요약
     bujeok_images: 부적 이미지 리스트 [(char_name, theme_name, model_name, base64), ...]
     """
-    # 디버깅: HTML 생성 함수에 전달된 sections 확인
-    import sys
-    print(f"[HTML DEBUG] generate_html 함수 시작", file=sys.stderr)
-    print(f"[HTML DEBUG] sections 키 목록: {list(sections.keys())}", file=sys.stderr)
-    월별운_keys = [k for k in sections.keys() if '월별' in k]
-    print(f"[HTML DEBUG] 월별운 관련 키: {월별운_keys}", file=sys.stderr)
-    if 월별운_keys:
-        for k in 월별운_keys:
-            print(f"[HTML DEBUG] 키 '{k}' 내용 길이: {len(sections[k])}, repr: {repr(k)}", file=sys.stderr)
+    # 디버깅: HTML 생성 함수에 전달된 sections 확인 (주석 처리 - 필요시 활성화)
+    # import sys
+    # print(f"[HTML DEBUG] generate_html 함수 시작", file=sys.stderr)
+    # print(f"[HTML DEBUG] sections 키 목록: {list(sections.keys())}", file=sys.stderr)
     
     if bujeok_images is None:
         bujeok_images = []
@@ -541,17 +536,11 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
         combined_content = []
         has_content = False
 
-        # 월별운세 디버깅: 키 비교
+        # 월별운세 디버깅: 실제 HTML에 주석으로 출력
         if display_title == "월별운세":
-            import sys
-            print(f"[DEBUG] 월별운세 처리 시작", file=sys.stderr)
-            print(f"[DEBUG] section_keys: {section_keys}", file=sys.stderr)
-            print(f"[DEBUG] sections의 키들: {list(sections.keys())}", file=sys.stderr)
+            html += f"<!-- 월별운세 디버깅: section_keys={section_keys}, sections 키={list(sections.keys())[:5]} -->\n"
             for sk in section_keys:
-                print(f"[DEBUG] 찾는 키: '{sk}' (repr: {repr(sk)})", file=sys.stderr)
-                print(f"[DEBUG] sections에 해당 키 존재?: {sk in sections}", file=sys.stderr)
-                if sk in sections:
-                    print(f"[DEBUG] 내용 길이: {len(sections[sk])}, 내용 미리보기: {sections[sk][:100]}", file=sys.stderr)
+                html += f"<!-- 찾는 키: '{sk}', 존재?: {sk in sections}, 내용: {len(sections.get(sk, ''))}자 -->\n"
 
         for key in section_keys:
             content = sections.get(key, "").strip()
@@ -601,8 +590,9 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                 line = line.strip()
                 if not line:
                     continue
-                # "01월", "1월" 등의 패턴 찾기
-                if line.endswith('월') and len(line) <= 4:
+                # "01월", "1월", "1월 운세" 등의 패턴 찾기
+                # '월'이 포함되고 '운세'로 끝나거나, 짧은 월 표기일 경우
+                if ('월' in line and '운세' in line) or (line.endswith('월') and len(line) <= 4):
                     # 이전 월 데이터 저장
                     if current_month and current_text:
                         months.append({'month': current_month, 'text': ' '.join(current_text)})
