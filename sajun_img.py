@@ -383,6 +383,16 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
     chongun_summary: 총운 3줄 요약
     bujeok_images: 부적 이미지 리스트 [(char_name, theme_name, model_name, base64), ...]
     """
+    # 디버깅: HTML 생성 함수에 전달된 sections 확인
+    import sys
+    print(f"[HTML DEBUG] generate_html 함수 시작", file=sys.stderr)
+    print(f"[HTML DEBUG] sections 키 목록: {list(sections.keys())}", file=sys.stderr)
+    월별운_keys = [k for k in sections.keys() if '월별' in k]
+    print(f"[HTML DEBUG] 월별운 관련 키: {월별운_keys}", file=sys.stderr)
+    if 월별운_keys:
+        for k in 월별운_keys:
+            print(f"[HTML DEBUG] 키 '{k}' 내용 길이: {len(sections[k])}, repr: {repr(k)}", file=sys.stderr)
+    
     if bujeok_images is None:
         bujeok_images = []
     html = f"""<!DOCTYPE html>
@@ -531,17 +541,23 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
         combined_content = []
         has_content = False
 
+        # 월별운세 디버깅: 키 비교
+        if display_title == "월별운세":
+            import sys
+            print(f"[DEBUG] 월별운세 처리 시작", file=sys.stderr)
+            print(f"[DEBUG] section_keys: {section_keys}", file=sys.stderr)
+            print(f"[DEBUG] sections의 키들: {list(sections.keys())}", file=sys.stderr)
+            for sk in section_keys:
+                print(f"[DEBUG] 찾는 키: '{sk}' (repr: {repr(sk)})", file=sys.stderr)
+                print(f"[DEBUG] sections에 해당 키 존재?: {sk in sections}", file=sys.stderr)
+                if sk in sections:
+                    print(f"[DEBUG] 내용 길이: {len(sections[sk])}, 내용 미리보기: {sections[sk][:100]}", file=sys.stderr)
+
         for key in section_keys:
             content = sections.get(key, "").strip()
             if content:
                 has_content = True
                 combined_content.append(content)
-            # 월별운세 디버깅
-            elif display_title == "월별운세":
-                # 월별운세인데 내용이 없을 때, 사용 가능한 키 목록 출력
-                import sys
-                print(f"[DEBUG] 월별운세 섹션에서 '{key}' 키를 찾지 못했습니다.", file=sys.stderr)
-                print(f"[DEBUG] sections에 있는 키들: {list(sections.keys())}", file=sys.stderr)
 
         # 내용이 없으면 건너뛰기
         if not has_content:
@@ -1606,7 +1622,7 @@ if generate:
                 
                 enhanced_results = []
                 
-                # OpenAI로 부적 생성
+                # OpenAI로 부적 생성 (캐릭터 부적 - 이미지 편집)
                 if locked_openai_client:
                     openai_prompt = locked_bujeok_prompt.format(
                         theme_name=selected_themes[0]['name'],
@@ -1615,22 +1631,28 @@ if generate:
                     openai_results = generate_bujeok_images(openai_prompt, [selected_chars[0]], locked_openai_client)
                     if openai_results and openai_results[0][2] is not None:
                         enhanced_results.append((
-                            openai_results[0][0], 
+                            openai_results[0][0],  # 캐릭터 이름
                             selected_themes[0]['name'], 
-                            "OpenAI (gpt-image-1)",
+                            "OpenAI (캐릭터 부적)",
                             openai_results[0][1], 
                             openai_results[0][2]
                         ))
                 
-                # Gemini로 부적 생성
+                # Gemini로 부적 생성 (일반 부적 - 캐릭터 없음)
                 if gemini_client:
-                    gemini_prompt = locked_bujeok_prompt.format(
-                        theme_name=selected_themes[1]['name'],
-                        theme_keywords=selected_themes[1]['keywords']
+                    # Gemini용 프롬프트 (캐릭터 언급 제거, 순수 부적 스타일)
+                    gemini_bujeok_prompt = (
+                        f"Create a vertical traditional Korean bujeok talisman artwork in a 9:16 aspect ratio for {selected_themes[1]['name']}. "
+                        f"The artwork must strongly incorporate visual symbols, objects, patterns, and traditional motifs directly representing {selected_themes[1]['name']} and {selected_themes[1]['keywords']}. "
+                        f"Use auspicious iconography and lucky cultural elements that are specifically associated with {selected_themes[1]['keywords']}, such as emblematic shapes, spiritual objects, charms, or symbolic animals. "
+                        f"Surround with detailed brushstroke patterns and ritual symbols that amplify the meaning of {selected_themes[1]['keywords']}, visually expressing themes like protection, prosperity, love, success, health, or spiritual blessing. "
+                        "Use a 3D sculpted style with soft cinematic lighting, rich depth, elegant shading, and luxurious material texture on aged yellow parchment with weathered ancient Korean paper texture. "
+                        "Isolated on a clean white background. "
+                        "No real text, letters, numbers, watermarks, or human characters."
                     )
-                    # Gemini는 generate_images 함수 사용
+                    # Gemini는 generate_images 함수 사용 (텍스트-이미지 생성)
                     gemini_imgs = generate_images(
-                        f"Create a picture of: {gemini_prompt}",
+                        f"Create a picture of: {gemini_bujeok_prompt}",
                         num_images=1,
                         provider="gemini",
                         gemini_client=gemini_client,
@@ -1638,10 +1660,10 @@ if generate:
                     )
                     if gemini_imgs and gemini_imgs[0] is not None:
                         enhanced_results.append((
-                            selected_chars[1][0],
+                            "일반 부적",  # 캐릭터 이름 대신
                             selected_themes[1]['name'],
-                            "Gemini (gemini-2.5-flash-image)",
-                            gemini_prompt,
+                            "Gemini (일반 부적)",
+                            gemini_bujeok_prompt,
                             gemini_imgs[0]
                         ))
                 
