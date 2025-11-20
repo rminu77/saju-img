@@ -70,7 +70,7 @@ DEFAULT_SUMMARY_INSTRUCTION = (
     "Output the description in English as 1-2 sentences."
 )
 DEFAULT_BUJEOK_INSTRUCTION = (
-    "Create a vertical traditional Korean bujeok talisman artwork in a 9:16 aspect ratio (768x1344 pixels), featuring this cute pink character with small white horns transformed into an elegant symbol of good fortune. 
+    "Create a vertical traditional Korean bujeok talisman artwork in a 9:16 aspect ratio (768x1344 pixels). "
     "The artwork must strongly incorporate visual symbols, objects, patterns, and traditional motifs directly representing {theme_name} and {theme_keywords}. "
     "Use auspicious iconography and lucky cultural elements that are specifically associated with {theme_keywords}, such as emblematic shapes, spiritual objects, charms, or symbolic animals, integrating them into the talisman composition.
     "Render intricate flowing red calligraphy-inspired mystical symbols (not real text) arranged around the character, harmonizing with ornate traditional borders and decorative patterns rooted in Korean talisman aesthetics. "
