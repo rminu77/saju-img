@@ -103,9 +103,17 @@ def get_openai_client():
     if not OPENAI_API_KEY or not OpenAI:
         return None
     try:
-        # 기본 OpenAI 클라이언트 사용 (프록시 환경 변수 자동 적용)
-        client = OpenAI(api_key=OPENAI_API_KEY)
-        return client
+        # httpx 클라이언트로 프록시 환경 변수 자동 적용 (trust_env=True가 기본값)
+        try:
+            import httpx
+            # trust_env=True로 HTTP_PROXY, HTTPS_PROXY 환경 변수 사용
+            http_client = httpx.Client(trust_env=True)
+            client = OpenAI(api_key=OPENAI_API_KEY, http_client=http_client)
+            return client
+        except ImportError:
+            # httpx가 없으면 기본 클라이언트 사용
+            client = OpenAI(api_key=OPENAI_API_KEY)
+            return client
     except Exception as e:
         st.warning(f"OpenAI 클라이언트 초기화 실패: {e}")
         return None
