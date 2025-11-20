@@ -69,6 +69,13 @@ DEFAULT_SUMMARY_INSTRUCTION = (
     "Create a description that an artist can immediately visualize and paint as a single, cohesive scene. "
     "Output the description in English as 1-2 sentences."
 )
+DEFAULT_BUJEOK_INSTRUCTION = (
+    "Transform into a beautiful Korean fortune talisman (부적) for {theme_name} ({theme_keywords}). "
+    "The talisman should feature traditional decorative borders, auspicious patterns related to {theme_keywords}, "
+    "ornate gold and red embellishments on aged parchment background. "
+    "Preserve the character's cute and lovely appearance while adding artistic Korean traditional elements. "
+    "3D style with elegant lighting and mystical atmosphere."
+)
 DEFAULT_CHAT_SUMMARY_INSTRUCTION = """당신은 도사 말투로 사주를 요약하는 전문가입니다.
 
 변환 규칙:
@@ -548,6 +555,18 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                 <p class="text-center text-lg font-medium text-gray-600 mb-6">
                     이미지로 보는 내 사주
                 </p>
+"""
+            # 총운 3줄 요약을 이미지 위에 표시
+            if chongun_summary:
+                html += f"""
+                <!-- 총운 3줄 요약 -->
+                <div class="mb-6 p-5 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg max-w-2xl mx-auto">
+                    <div class="text-base text-gray-800 leading-relaxed whitespace-pre-line">
+{chongun_summary}
+                    </div>
+                </div>
+"""
+            html += f"""
                 <div class="flex justify-center">
                     <img src="data:image/png;base64,{image_base64}" alt="새해운세 이미지" class="rounded-lg shadow-lg max-w-full h-auto">
                 </div>
@@ -589,17 +608,6 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                 <p class="text-lg font-medium text-gray-600 mb-6">
                     올해의 주제와 흐름
                 </p>
-"""
-
-        # 총운 섹션 특별 처리 (3줄 요약 박스 추가)
-        if display_title == "총운" and chongun_summary:
-            html += f"""
-                <!-- 총운 3줄 요약 -->
-                <div class="mb-6 p-5 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
-                    <div class="text-base text-gray-800 leading-relaxed whitespace-pre-line">
-{chongun_summary}
-                    </div>
-                </div>
 """
 
         # 월별운세는 특별 처리 (그리드 레이아웃)
@@ -1488,6 +1496,14 @@ summary_prompt_input = st.text_area(
 )
 summary_prompt = summary_prompt_input if summary_prompt_input.strip() else DEFAULT_SUMMARY_INSTRUCTION
 
+bujeok_prompt_input = st.text_area(
+    "부적 이미지 시스템 프롬프트",
+    value=DEFAULT_BUJEOK_INSTRUCTION,
+    height=120,
+    help="부적 이미지 생성 시 사용할 시스템 프롬프트입니다. {theme_name}과 {theme_keywords}는 자동으로 치환됩니다.",
+)
+bujeok_prompt = bujeok_prompt_input if bujeok_prompt_input.strip() else DEFAULT_BUJEOK_INSTRUCTION
+
 chat_summary_prompt_input = st.text_area(
     "채팅방 요약 시스템 프롬프트",
     value=DEFAULT_CHAT_SUMMARY_INSTRUCTION,
@@ -1518,6 +1534,7 @@ if generate:
     # 이미지 생성 시작 시점의 설정을 고정
     locked_system_prompt = system_prompt
     locked_summary_prompt = summary_prompt
+    locked_bujeok_prompt = bujeok_prompt
     locked_chat_summary_prompt = chat_summary_prompt
     locked_openai_client = openai_client
 
@@ -1579,7 +1596,6 @@ if generate:
     # 사주 이미지 생성 함수
     def generate_saju_image():
         try:
-            st.write("🎨 사주 이미지 생성 시작...")
             imgs = generate_images(
                 final_prompt,
                 num_images=1,
@@ -1588,20 +1604,14 @@ if generate:
                 openai_client=locked_openai_client,
             )
             valid = [i for i in imgs if i is not None]
-            if valid:
-                st.write("✅ 사주 이미지 생성 완료")
-            else:
-                st.write("❌ 사주 이미지 생성 실패")
-            return valid[0] if valid else None
+            return {"success": True, "image": valid[0] if valid else None, "error": None}
         except Exception as e:
-            st.error(f"사주 이미지 생성 중 오류: {e}")
-            return None
+            return {"success": False, "image": None, "error": str(e)}
 
     # 부적 이미지 생성 함수
     def generate_bujeok_images_wrapper():
         try:
             import random
-            st.write("🧧 부적 이미지 생성 시작...")
             img_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "img")
             char_images = [
                 ("나나", os.path.join(img_dir, "nana.png")),
@@ -1610,12 +1620,10 @@ if generate:
             ]
             
             valid_chars = [(name, path) for name, path in char_images if os.path.exists(path)]
-            st.write(f"📂 발견된 캐릭터 이미지: {len(valid_chars)}개")
             
             if valid_chars and locked_openai_client:
                 # 랜덤으로 캐릭터 1개 선택
                 selected_char = random.choice(valid_chars)
-                st.write(f"🎲 선택된 캐릭터: {selected_char[0]}")
                 
                 # 랜덤으로 테마 1개 선택
                 themes = [
@@ -1627,30 +1635,36 @@ if generate:
                     {"name": "이사운", "keywords": "moving, new home, journey, change, fresh start"}
                 ]
                 selected_theme = random.choice(themes)
-                st.write(f"🎲 선택된 테마: {selected_theme['name']}")
                 
-                # 테마에 맞는 부적 프롬프트
-                base_bujeok_prompt = f"Transform into a beautiful Korean fortune talisman (부적) for {selected_theme['name']} ({selected_theme['keywords']}). The talisman should feature traditional decorative borders, auspicious patterns related to {selected_theme['keywords']}, ornate gold and red embellishments on aged parchment background. Preserve the character's cute and lovely appearance while adding artistic Korean traditional elements. 3D style with elegant lighting and mystical atmosphere."
+                # 테마에 맞는 부적 프롬프트 (사용자 정의 프롬프트 사용)
+                base_bujeok_prompt = locked_bujeok_prompt.format(
+                    theme_name=selected_theme['name'],
+                    theme_keywords=selected_theme['keywords']
+                )
                 
                 # 단일 이미지만 생성
                 results = generate_bujeok_images(base_bujeok_prompt, [selected_char], locked_openai_client)
-                st.write(f"✅ 부적 이미지 생성 완료")
                 
                 # 결과에 테마 정보 추가
                 if results and results[0][2] is not None:
                     # (char_name, prompt, image) -> (char_name, theme_name, prompt, image)
                     enhanced_results = [(results[0][0], selected_theme['name'], results[0][1], results[0][2])]
-                    return enhanced_results, [selected_char]
-                return [], []
-            return [], []
+                    return {
+                        "success": True, 
+                        "results": enhanced_results, 
+                        "valid_chars": [selected_char],
+                        "char_count": len(valid_chars),
+                        "selected_char": selected_char[0],
+                        "selected_theme": selected_theme['name'],
+                        "error": None
+                    }
+                return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": "이미지 생성 실패"}
+            return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": "캐릭터 이미지 없음"}
         except Exception as e:
-            st.error(f"부적 이미지 생성 중 오류: {e}")
             import traceback
-            st.error(traceback.format_exc())
-            return [], []
+            return {"success": False, "results": [], "valid_chars": [], "char_count": 0, "error": f"{str(e)}\n{traceback.format_exc()}"}
 
     # 사주 이미지와 부적 이미지를 동시에 생성
-    st.write("⏳ 병렬 처리 시작...")
     with st.spinner("🎨 사주 이미지와 부적 이미지를 동시에 생성 중... (병렬 처리)"):
         with ThreadPoolExecutor(max_workers=2) as executor:
             # 두 작업을 동시에 시작
@@ -1659,8 +1673,13 @@ if generate:
             
             # 결과 대기 (타임아웃 5분)
             try:
-                saju_img = saju_future.result(timeout=300)
-                st.write("✓ 사주 이미지 처리 완료")
+                saju_result = saju_future.result(timeout=300)
+                if saju_result["success"]:
+                    st.write("✅ 사주 이미지 생성 완료")
+                    saju_img = saju_result["image"]
+                else:
+                    st.error(f"사주 이미지 생성 실패: {saju_result.get('error', '알 수 없는 오류')}")
+                    saju_img = None
             except TimeoutError:
                 st.error("사주 이미지 생성 타임아웃 (5분 초과)")
                 saju_img = None
@@ -1669,8 +1688,17 @@ if generate:
                 saju_img = None
             
             try:
-                bujeok_results_raw, valid_chars = bujeok_future.result(timeout=300)
-                st.write("✓ 부적 이미지 처리 완료")
+                bujeok_result = bujeok_future.result(timeout=300)
+                if bujeok_result["success"]:
+                    st.write(f"📂 발견된 캐릭터 이미지: {bujeok_result['char_count']}개")
+                    st.write(f"🎲 선택된 캐릭터: {bujeok_result['selected_char']}")
+                    st.write(f"🎲 선택된 테마: {bujeok_result['selected_theme']}")
+                    st.write("✅ 부적 이미지 생성 완료")
+                    bujeok_results_raw = bujeok_result["results"]
+                    valid_chars = bujeok_result["valid_chars"]
+                else:
+                    st.warning(f"부적 이미지 생성 실패: {bujeok_result.get('error', '알 수 없는 오류')}")
+                    bujeok_results_raw, valid_chars = [], []
             except TimeoutError:
                 st.error("부적 이미지 생성 타임아웃 (5분 초과)")
                 bujeok_results_raw, valid_chars = [], []
