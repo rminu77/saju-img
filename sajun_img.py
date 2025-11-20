@@ -70,13 +70,15 @@ DEFAULT_SUMMARY_INSTRUCTION = (
     "Output the description in English as 1-2 sentences."
 )
 DEFAULT_BUJEOK_INSTRUCTION = (
-    "Transform the character into a beautiful and culturally authentic Korean fortune talisman (부적) themed around {theme_name} ({theme_keywords}). "
-    "The design must strongly reflect symbolic elements, lucky objects, ritual motifs, and visual patterns traditionally associated with {theme_keywords}. "
-    "Incorporate traditional Korean talisman borders and auspicious patterns, integrating shapes, iconography, and symbolic visual metaphors that represent {theme_keywords}. "
-    "Use ornate gold and vibrant red embellishments on aged parchment with authentic hand-painted texture. "
-    "Render the character in a cute and lovely style, expressing gestures, poses, props, clothing, or accessories directly inspired by {theme_keywords}, enhancing the meaning of the talisman. "
-    "Use 3D rendering with soft mystical lighting, subtle depth, ceremonial atmosphere, and a sacred harmony of form and color. "
-    "Avoid text, legible characters, or watermarks."
+    "Create a vertical traditional Korean bujeok talisman artwork in a 9:16 aspect ratio (768x1344 pixels), featuring this cute pink character with small white horns transformed into an elegant symbol of good fortune. 
+    "The artwork must strongly incorporate visual symbols, objects, patterns, and traditional motifs directly representing {theme_name} and {theme_keywords}. "
+    "Use auspicious iconography and lucky cultural elements that are specifically associated with {theme_keywords}, such as emblematic shapes, spiritual objects, charms, or symbolic animals, integrating them into the talisman composition.
+    "Render intricate flowing red calligraphy-inspired mystical symbols (not real text) arranged around the character, harmonizing with ornate traditional borders and decorative patterns rooted in Korean talisman aesthetics. "
+    "Surround the character with detailed brushstroke patterns and ritual symbols that amplify the meaning of {theme_keywords}, visually expressing themes like protection, prosperity, love, success, health, or spiritual blessing depending on the keywords.
+    "Use a 3D sculpted style with soft cinematic lighting, rich depth, elegant shading, and luxurious material texture on aged yellow parchment with weathered ancient Korean paper texture. "
+    "Isolated on a clean white background. "
+    "The final artwork should radiate harmony, auspicious energy, cultural reverence, and spiritual beauty, blending modern charm with classical Korean talisman craftsmanship. "
+    "No real text, letters, numbers, or watermarks."
 )
 DEFAULT_CHAT_SUMMARY_INSTRUCTION = """당신은 도사 말투로 사주를 요약하는 전문가입니다.
 
