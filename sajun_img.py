@@ -72,9 +72,9 @@ DEFAULT_SUMMARY_INSTRUCTION = (
 DEFAULT_BUJEOK_INSTRUCTION = (
     "Create a vertical traditional Korean bujeok talisman artwork in a 9:16 aspect ratio (768x1344 pixels). "
     "The artwork must strongly incorporate visual symbols, objects, patterns, and traditional motifs directly representing {theme_name} and {theme_keywords}. "
-    "Use auspicious iconography and lucky cultural elements that are specifically associated with {theme_keywords}, such as emblematic shapes, spiritual objects, charms, or symbolic animals, integrating them into the talisman composition.
+    "Use auspicious iconography and lucky cultural elements that are specifically associated with {theme_keywords}, such as emblematic shapes, spiritual objects, charms, or symbolic animals, integrating them into the talisman composition. "
     "Render intricate flowing red calligraphy-inspired mystical symbols (not real text) arranged around the character, harmonizing with ornate traditional borders and decorative patterns rooted in Korean talisman aesthetics. "
-    "Surround the character with detailed brushstroke patterns and ritual symbols that amplify the meaning of {theme_keywords}, visually expressing themes like protection, prosperity, love, success, health, or spiritual blessing depending on the keywords.
+    "Surround the character with detailed brushstroke patterns and ritual symbols that amplify the meaning of {theme_keywords}, visually expressing themes like protection, prosperity, love, success, health, or spiritual blessing depending on the keywords. "
     "Use a 3D sculpted style with soft cinematic lighting, rich depth, elegant shading, and luxurious material texture on aged yellow parchment with weathered ancient Korean paper texture. "
     "Isolated on a clean white background. "
     "The final artwork should radiate harmony, auspicious energy, cultural reverence, and spiritual beauty, blending modern charm with classical Korean talisman craftsmanship. "
