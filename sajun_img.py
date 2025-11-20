@@ -73,7 +73,7 @@ DEFAULT_BUJEOK_INSTRUCTION = (
     "Transform into a beautiful Korean fortune talisman (부적) for {theme_name} ({theme_keywords}). "
     "The talisman should feature traditional decorative borders, auspicious patterns related to {theme_keywords}, "
     "ornate gold and red embellishments on aged parchment background. "
-    "Preserve the character's cute and lovely appearance while adding artistic Korean traditional elements. "
+    "Please draw the character maintaining its cute and lovely appearance, incorporating lucky poses, props, or costumes connected to {theme_keywords}."
     "3D style with elegant lighting and mystical atmosphere."
 )
 DEFAULT_CHAT_SUMMARY_INSTRUCTION = """당신은 도사 말투로 사주를 요약하는 전문가입니다.
@@ -103,20 +103,9 @@ def get_openai_client():
     if not OPENAI_API_KEY or not OpenAI:
         return None
     try:
-        # httpx 클라이언트를 명시적으로 생성하여 프록시 문제 우회
-        # trust_env=False로 환경 변수의 프록시 설정을 무시
-        import httpx
-        http_client = httpx.Client(trust_env=False)
-        client = OpenAI(api_key=OPENAI_API_KEY, http_client=http_client)
+        # 기본 OpenAI 클라이언트 사용 (프록시 환경 변수 자동 적용)
+        client = OpenAI(api_key=OPENAI_API_KEY)
         return client
-    except ImportError:
-        # httpx를 사용할 수 없는 경우 기본 방식으로 시도
-        try:
-            client = OpenAI(api_key=OPENAI_API_KEY)
-            return client
-        except Exception as e:
-            st.warning(f"OpenAI 클라이언트 초기화 실패: {e}")
-            return None
     except Exception as e:
         st.warning(f"OpenAI 클라이언트 초기화 실패: {e}")
         return None
@@ -428,7 +417,7 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
     19개 섹션 내용을 받아서 HTML을 생성
     image_base64: base64로 인코딩된 이미지 데이터
     chongun_summary: 총운 3줄 요약
-    bujeok_images: 부적 이미지 리스트 [(char_name, theme_name, base64), ...]
+    bujeok_images: 부적 이미지 리스트 [(char_name, theme_name, model_name, base64), ...]
     """
     if bujeok_images is None:
         bujeok_images = []
@@ -981,22 +970,24 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
 
     # 부적 이미지 섹션 추가 (맨 마지막)
     if bujeok_images:
-        char_name, theme_name, img_base64 = bujeok_images[0]
-        html += f"""
+        html += """
             <!-- 부적 섹션 -->
             <section class="mb-10 mt-12">
                 <div class="text-center">
                     <h2 class="text-2xl font-semibold text-gray-800 mb-6">
-                        {theme_name} 행운의 부적
+                        행운의 부적
                     </h2>
-                    <p class="text-gray-600 mb-8">
-                        {char_name}이(가) 함께하는 {theme_name} 부적
-                    </p>
-                    <div class="flex justify-center">
-                        <div class="max-w-md">
-                            <img src="data:image/png;base64,{img_base64}" alt="{theme_name} 부적" class="rounded-lg shadow-2xl" style="width: 100%; height: auto;">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+"""
+        for char_name, theme_name, model_name, img_base64 in bujeok_images:
+            html += f"""
+                        <div class="flex flex-col items-center">
+                            <h3 class="text-xl font-semibold text-gray-800 mb-2">{theme_name} 부적</h3>
+                            <p class="text-sm text-gray-600 mb-4">{char_name} · {model_name}</p>
+                            <img src="data:image/png;base64,{img_base64}" alt="{theme_name} 부적" class="rounded-lg shadow-xl" style="max-height: 600px; width: auto;">
                         </div>
-                    </div>
+"""
+        html += """                    </div>
                 </div>
             </section>
 """
@@ -1608,7 +1599,7 @@ if generate:
         except Exception as e:
             return {"success": False, "image": None, "error": str(e)}
 
-    # 부적 이미지 생성 함수
+    # 부적 이미지 생성 함수 (OpenAI와 Gemini 각각 1개씩)
     def generate_bujeok_images_wrapper():
         try:
             import random
@@ -1621,11 +1612,13 @@ if generate:
             
             valid_chars = [(name, path) for name, path in char_images if os.path.exists(path)]
             
-            if valid_chars and locked_openai_client:
-                # 랜덤으로 캐릭터 1개 선택
-                selected_char = random.choice(valid_chars)
+            if valid_chars and (locked_openai_client or gemini_client):
+                # 랜덤으로 캐릭터 2개 선택 (OpenAI용, Gemini용)
+                selected_chars = random.sample(valid_chars, min(2, len(valid_chars)))
+                if len(selected_chars) == 1:
+                    selected_chars = [selected_chars[0], selected_chars[0]]  # 캐릭터가 1개뿐이면 중복 사용
                 
-                # 랜덤으로 테마 1개 선택
+                # 랜덤으로 테마 2개 선택
                 themes = [
                     {"name": "재물운", "keywords": "wealth, prosperity, fortune, gold coins, money"},
                     {"name": "연애운", "keywords": "love, romance, heart, relationships, harmony"},
@@ -1634,32 +1627,61 @@ if generate:
                     {"name": "소망운", "keywords": "wishes, dreams, goals, aspirations, fulfillment"},
                     {"name": "이사운", "keywords": "moving, new home, journey, change, fresh start"}
                 ]
-                selected_theme = random.choice(themes)
+                selected_themes = random.sample(themes, min(2, len(themes)))
+                if len(selected_themes) == 1:
+                    selected_themes = [selected_themes[0], selected_themes[0]]
                 
-                # 테마에 맞는 부적 프롬프트 (사용자 정의 프롬프트 사용)
-                base_bujeok_prompt = locked_bujeok_prompt.format(
-                    theme_name=selected_theme['name'],
-                    theme_keywords=selected_theme['keywords']
-                )
+                enhanced_results = []
                 
-                # 단일 이미지만 생성
-                results = generate_bujeok_images(base_bujeok_prompt, [selected_char], locked_openai_client)
+                # OpenAI로 부적 생성
+                if locked_openai_client:
+                    openai_prompt = locked_bujeok_prompt.format(
+                        theme_name=selected_themes[0]['name'],
+                        theme_keywords=selected_themes[0]['keywords']
+                    )
+                    openai_results = generate_bujeok_images(openai_prompt, [selected_chars[0]], locked_openai_client)
+                    if openai_results and openai_results[0][2] is not None:
+                        enhanced_results.append((
+                            openai_results[0][0], 
+                            selected_themes[0]['name'], 
+                            "OpenAI (gpt-image-1)",
+                            openai_results[0][1], 
+                            openai_results[0][2]
+                        ))
                 
-                # 결과에 테마 정보 추가
-                if results and results[0][2] is not None:
-                    # (char_name, prompt, image) -> (char_name, theme_name, prompt, image)
-                    enhanced_results = [(results[0][0], selected_theme['name'], results[0][1], results[0][2])]
+                # Gemini로 부적 생성
+                if gemini_client:
+                    gemini_prompt = locked_bujeok_prompt.format(
+                        theme_name=selected_themes[1]['name'],
+                        theme_keywords=selected_themes[1]['keywords']
+                    )
+                    # Gemini는 generate_images 함수 사용
+                    gemini_imgs = generate_images(
+                        f"Create a picture of: {gemini_prompt}",
+                        num_images=1,
+                        provider="gemini",
+                        gemini_client=gemini_client,
+                        openai_client=None
+                    )
+                    if gemini_imgs and gemini_imgs[0] is not None:
+                        enhanced_results.append((
+                            selected_chars[1][0],
+                            selected_themes[1]['name'],
+                            "Gemini (gemini-2.5-flash-image)",
+                            gemini_prompt,
+                            gemini_imgs[0]
+                        ))
+                
+                if enhanced_results:
                     return {
                         "success": True, 
                         "results": enhanced_results, 
-                        "valid_chars": [selected_char],
+                        "valid_chars": selected_chars,
                         "char_count": len(valid_chars),
-                        "selected_char": selected_char[0],
-                        "selected_theme": selected_theme['name'],
                         "error": None
                     }
                 return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": "이미지 생성 실패"}
-            return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": "캐릭터 이미지 없음"}
+            return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": "캐릭터 이미지 또는 API 클라이언트 없음"}
         except Exception as e:
             import traceback
             return {"success": False, "results": [], "valid_chars": [], "char_count": 0, "error": f"{str(e)}\n{traceback.format_exc()}"}
@@ -1691,9 +1713,7 @@ if generate:
                 bujeok_result = bujeok_future.result(timeout=300)
                 if bujeok_result["success"]:
                     st.write(f"📂 발견된 캐릭터 이미지: {bujeok_result['char_count']}개")
-                    st.write(f"🎲 선택된 캐릭터: {bujeok_result['selected_char']}")
-                    st.write(f"🎲 선택된 테마: {bujeok_result['selected_theme']}")
-                    st.write("✅ 부적 이미지 생성 완료")
+                    st.write(f"✅ 부적 이미지 {len(bujeok_result['results'])}개 생성 완료")
                     bujeok_results_raw = bujeok_result["results"]
                     valid_chars = bujeok_result["valid_chars"]
                 else:
@@ -1732,23 +1752,25 @@ if generate:
     if bujeok_results_raw:
         st.markdown("#### 🧧 행운의 부적")
         
-        # 단일 부적 표시
-        char_name, theme_name, prompt, img = bujeok_results_raw[0]
-        if img:
-            # base64로 인코딩
-            bujeok_buffered = BytesIO()
-            img.save(bujeok_buffered, format="PNG")
-            img_b64 = base64.b64encode(bujeok_buffered.getvalue()).decode()
-            bujeok_results.append((char_name, theme_name, img_b64))
-            
-            # 화면에 표시 (중앙 정렬)
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                st.markdown(f"**{theme_name} 부적 ({char_name})**")
-                st.image(img, use_container_width=True)
-                with st.expander("생성된 프롬프트"):
-                    st.text(prompt if prompt else "프롬프트 생성 실패")
-        else:
+        # 2개의 부적 표시 (OpenAI, Gemini)
+        cols = st.columns(2)
+        for idx, (char_name, theme_name, model_name, prompt, img) in enumerate(bujeok_results_raw):
+            if img:
+                # base64로 인코딩
+                bujeok_buffered = BytesIO()
+                img.save(bujeok_buffered, format="PNG")
+                img_b64 = base64.b64encode(bujeok_buffered.getvalue()).decode()
+                bujeok_results.append((char_name, theme_name, model_name, img_b64))
+                
+                # 화면에 표시
+                with cols[idx]:
+                    st.markdown(f"**{theme_name} 부적**")
+                    st.markdown(f"*{char_name} · {model_name}*")
+                    st.image(img, use_container_width=True)
+                    with st.expander("생성된 프롬프트"):
+                        st.text(prompt if prompt else "프롬프트 생성 실패")
+        
+        if not bujeok_results:
             st.warning("부적 이미지 생성에 실패했습니다.")
     elif not valid_chars:
         st.info("img 폴더에 캐릭터 이미지(nana.png, Bbanya.png, Angmond.png)가 없습니다. 부적 생성을 건너뜁니다.")
