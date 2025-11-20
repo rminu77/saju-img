@@ -70,13 +70,12 @@ DEFAULT_SUMMARY_INSTRUCTION = (
     "Output the description in English as 1-2 sentences."
 )
 DEFAULT_BUJEOK_INSTRUCTION = (
-    "Create a vertical traditional Korean bujeok talisman artwork in a 9:16 aspect ratio (768x1344 pixels). "
+    "Create a vertical traditional Korean bujeok talisman artwork in a 9:16 aspect ratio. "
     "The artwork must strongly incorporate visual symbols, objects, patterns, and traditional motifs directly representing {theme_name} and {theme_keywords}. "
     "Use auspicious iconography and lucky cultural elements that are specifically associated with {theme_keywords}, such as emblematic shapes, spiritual objects, charms, or symbolic animals, integrating them into the talisman composition. "
     "Surround the character with detailed brushstroke patterns and ritual symbols that amplify the meaning of {theme_keywords}, visually expressing themes like protection, prosperity, love, success, health, or spiritual blessing depending on the keywords. "
     "Use a 3D sculpted style with soft cinematic lighting, rich depth, elegant shading, and luxurious material texture on aged yellow parchment with weathered ancient Korean paper texture. "
     "Isolated on a clean white background. "
-    "The final artwork should radiate harmony, auspicious energy, cultural reverence, and spiritual beauty, blending modern charm with classical Korean talisman craftsmanship. "
     "No real text, letters, numbers, or watermarks."
 )
 DEFAULT_CHAT_SUMMARY_INSTRUCTION = """당신은 도사 말투로 사주를 요약하는 전문가입니다.
@@ -321,30 +320,6 @@ def generate_images(
             images.append(None)
     return images
 
-def generate_bujeok_prompt_single(base_prompt: str, img_b64: str, char_name: str, openai_client: OpenAI):
-    """단일 부적 프롬프트를 생성하는 함수 (병렬 처리용)"""
-    prompt_text = f"""Create an artistic prompt to transform this character into a beautiful Korean talisman artwork (부적).
-
-Style Guidelines:
-1. Create a vertical traditional Korean bujeok (부적, talisman) in 9:16 aspect ratio.
-2. Art style: 3D rendered with soft cinematic lighting, depth, and elegant materials
-
-Write a clear, positive, and artistic English prompt for an AI image editor. Emphasize beauty, tradition, and good fortune."""
-
-    response = openai_client.chat.completions.create(
-        model="gpt-4.1",
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt_text},
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}}
-                ]
-            }
-        ]
-    )
-    return response.choices[0].message.content.strip()
-
 def generate_bujeok_image_single(prompt: str, image_path: str, openai_client: OpenAI):
     """프롬프트로 단일 부적 이미지를 생성하는 함수 (병렬 처리용)"""
     # images.edit 사용하여 캐릭터 보존하면서 스타일 변경
@@ -375,36 +350,14 @@ def generate_bujeok_images(base_prompt: str, char_images: list, openai_client: O
     반환: [(name, prompt, image), ...] 형식의 리스트
     """
     results = []
-    prompts = [""] * len(char_images)
     images = [None] * len(char_images)
     
-    # 1단계: 모든 프롬프트를 동시에 생성
+    # base_prompt를 직접 사용하여 모든 이미지를 동시에 생성
     with ThreadPoolExecutor(max_workers=len(char_images)) as executor:
         future_to_index = {}
         for i, (char_name, img_path) in enumerate(char_images):
-            # 이미지를 base64로 인코딩
-            with open(img_path, "rb") as f:
-                img_b64 = base64.b64encode(f.read()).decode()
-            
-            future = executor.submit(generate_bujeok_prompt_single, base_prompt, img_b64, char_name, openai_client)
+            future = executor.submit(generate_bujeok_image_single, base_prompt, img_path, openai_client)
             future_to_index[future] = i
-        
-        # 완료된 프롬프트들 수집
-        for future in as_completed(future_to_index):
-            index = future_to_index[future]
-            try:
-                prompts[index] = future.result()
-            except Exception as exc:
-                st.warning(f'프롬프트 {index+1} 생성 중 오류: {exc}')
-                prompts[index] = None
-    
-    # 2단계: 생성된 프롬프트들로 모든 이미지를 동시에 생성
-    with ThreadPoolExecutor(max_workers=len(char_images)) as executor:
-        future_to_index = {}
-        for i, (char_name, img_path) in enumerate(char_images):
-            if prompts[i]:
-                future = executor.submit(generate_bujeok_image_single, prompts[i], img_path, openai_client)
-                future_to_index[future] = i
         
         # 완료된 이미지들 수집
         for future in as_completed(future_to_index):
@@ -412,12 +365,12 @@ def generate_bujeok_images(base_prompt: str, char_images: list, openai_client: O
             try:
                 images[index] = future.result()
             except Exception as exc:
-                st.warning(f'이미지 {index+1} 생성 중 오류: {exc}')
+                # 에러 메시지는 streamlit 밖에서 발생하므로 무시
                 images[index] = None
     
     # 결과 조합
     for i, (char_name, _) in enumerate(char_images):
-        results.append((char_name, prompts[i], images[i]))
+        results.append((char_name, base_prompt, images[i]))
     
     return results
 
@@ -583,9 +536,18 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
             if content:
                 has_content = True
                 combined_content.append(content)
+            # 월별운세 디버깅
+            elif display_title == "월별운세":
+                # 월별운세인데 내용이 없을 때, 사용 가능한 키 목록 출력
+                import sys
+                print(f"[DEBUG] 월별운세 섹션에서 '{key}' 키를 찾지 못했습니다.", file=sys.stderr)
+                print(f"[DEBUG] sections에 있는 키들: {list(sections.keys())}", file=sys.stderr)
 
         # 내용이 없으면 건너뛰기
         if not has_content:
+            if display_title == "월별운세":
+                import sys
+                print(f"[DEBUG] 월별운세 섹션이 건너뛰어졌습니다. has_content=False", file=sys.stderr)
             continue
 
         # 섹션 ID 생성 (한글 제목을 그대로 사용)
@@ -1790,12 +1752,33 @@ if generate:
 
     # HTML 생성 - 섹션 키 매핑 (입력창 키 -> HTML 표시용 키)
     with st.spinner("📄 HTML 생성 중..."):
+        # 디버깅: sections 딕셔너리의 모든 키 확인
+        st.write("### 📋 입력된 sections 딕셔너리 키 확인")
+        월별운_in_sections = [k for k in sections.keys() if '월별' in k]
+        if 월별운_in_sections:
+            st.write(f"✅ sections에 월별운 키 있음: {월별운_in_sections}")
+            for k in 월별운_in_sections:
+                st.write(f"  - 키: '{k}', 내용 길이: {len(sections[k])}자, 비어있음: {not sections[k].strip()}")
+        else:
+            st.warning(f"⚠️ sections에 월별운 키가 없습니다. 전체 키: {list(sections.keys())}")
+        
         # 섹션 키를 HTML 생성 함수가 기대하는 형식으로 변환
         mapped_sections = {}
         for key, content in sections.items():
             # "(새해신수)", "(토정비결)" 등을 제거하여 간단한 키로 변환
             clean_key = key.replace("(새해신수)", "").replace("(토정비결)", "").replace(")", "")
             mapped_sections[clean_key] = content
+        
+        # 디버깅: 월별운 키와 내용 확인
+        st.write("### 📋 변환된 mapped_sections 키 확인")
+        월별운_keys = [k for k in mapped_sections.keys() if '월별' in k or '월별운' in k]
+        if 월별운_keys:
+            st.write(f"✅ 월별운 관련 키 발견: {월별운_keys}")
+            for key in 월별운_keys:
+                st.write(f"  - '{key}': {len(mapped_sections[key])}자, 키 표현: {repr(key)}")
+        else:
+            st.warning("⚠️ mapped_sections에 월별운 관련 키가 없습니다")
+            st.write(f"사용 가능한 모든 키: {list(mapped_sections.keys())}")
 
         html_content = generate_html(
             user_name=user_name,
