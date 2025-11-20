@@ -70,11 +70,13 @@ DEFAULT_SUMMARY_INSTRUCTION = (
     "Output the description in English as 1-2 sentences."
 )
 DEFAULT_BUJEOK_INSTRUCTION = (
-    "Transform into a beautiful Korean fortune talisman (부적) for {theme_name} ({theme_keywords}). "
-    "The talisman should feature traditional decorative borders, auspicious patterns related to {theme_keywords}, "
-    "ornate gold and red embellishments on aged parchment background. "
-    "Please draw the character maintaining its cute and lovely appearance, incorporating lucky poses, props, or costumes connected to {theme_keywords}."
-    "3D style with elegant lighting and mystical atmosphere."
+    "Transform the character into a beautiful and culturally authentic Korean fortune talisman (부적) themed around {theme_name} ({theme_keywords}). "
+    "The design must strongly reflect symbolic elements, lucky objects, ritual motifs, and visual patterns traditionally associated with {theme_keywords}. "
+    "Incorporate traditional Korean talisman borders and auspicious patterns, integrating shapes, iconography, and symbolic visual metaphors that represent {theme_keywords}. "
+    "Use ornate gold and vibrant red embellishments on aged parchment with authentic hand-painted texture. "
+    "Render the character in a cute and lovely style, expressing gestures, poses, props, clothing, or accessories directly inspired by {theme_keywords}, enhancing the meaning of the talisman. "
+    "Use 3D rendering with soft mystical lighting, subtle depth, ceremonial atmosphere, and a sacred harmony of form and color. "
+    "Avoid text, legible characters, or watermarks."
 )
 DEFAULT_CHAT_SUMMARY_INSTRUCTION = """당신은 도사 말투로 사주를 요약하는 전문가입니다.
 
