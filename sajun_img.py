@@ -73,7 +73,6 @@ DEFAULT_BUJEOK_INSTRUCTION = (
     "Create a vertical traditional Korean bujeok talisman artwork in a 9:16 aspect ratio (768x1344 pixels). "
     "The artwork must strongly incorporate visual symbols, objects, patterns, and traditional motifs directly representing {theme_name} and {theme_keywords}. "
     "Use auspicious iconography and lucky cultural elements that are specifically associated with {theme_keywords}, such as emblematic shapes, spiritual objects, charms, or symbolic animals, integrating them into the talisman composition. "
-    "Render intricate flowing red calligraphy-inspired mystical symbols (not real text) arranged around the character, harmonizing with ornate traditional borders and decorative patterns rooted in Korean talisman aesthetics. "
     "Surround the character with detailed brushstroke patterns and ritual symbols that amplify the meaning of {theme_keywords}, visually expressing themes like protection, prosperity, love, success, health, or spiritual blessing depending on the keywords. "
     "Use a 3D sculpted style with soft cinematic lighting, rich depth, elegant shading, and luxurious material texture on aged yellow parchment with weathered ancient Korean paper texture. "
     "Isolated on a clean white background. "
@@ -186,7 +185,7 @@ def convert_tone_to_dosa(
         raise ValueError("OpenAI 클라이언트가 초기화되지 않았습니다.")
 
     completion = openai_client.chat.completions.create(
-        model="gpt-4.1-mini",
+        model="gpt-4.1",
         messages=[
             {"role": "system", "content": system_instruction},
             {"role": "user", "content": user_msg},
@@ -333,7 +332,7 @@ Style Guidelines:
 Write a clear, positive, and artistic English prompt for an AI image editor. Emphasize beauty, tradition, and good fortune."""
 
     response = openai_client.chat.completions.create(
-        model="gpt-4.1-mini",
+        model="gpt-4.1",
         messages=[
             {
                 "role": "user",
