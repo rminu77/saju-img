@@ -421,7 +421,7 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
     19개 섹션 내용을 받아서 HTML을 생성
     image_base64: base64로 인코딩된 이미지 데이터
     chongun_summary: 총운 3줄 요약
-    bujeok_images: 부적 이미지 리스트 [(name, base64), ...]
+    bujeok_images: 부적 이미지 리스트 [(char_name, theme_name, base64), ...]
     """
     if bujeok_images is None:
         bujeok_images = []
@@ -973,23 +973,22 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
 
     # 부적 이미지 섹션 추가 (맨 마지막)
     if bujeok_images:
-        html += """
+        char_name, theme_name, img_base64 = bujeok_images[0]
+        html += f"""
             <!-- 부적 섹션 -->
             <section class="mb-10 mt-12">
                 <div class="text-center">
                     <h2 class="text-2xl font-semibold text-gray-800 mb-6">
-                        새해 복을 담은 부적
+                        {theme_name} 행운의 부적
                     </h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-"""
-        for char_name, img_base64 in bujeok_images:
-            html += f"""
-                        <div class="flex flex-col items-center">
-                            <h3 class="text-lg font-semibold text-gray-700 mb-3">{char_name}</h3>
-                            <img src="data:image/png;base64,{img_base64}" alt="{char_name} 부적" class="rounded-lg shadow-xl" style="max-height: 600px; width: auto;">
+                    <p class="text-gray-600 mb-8">
+                        {char_name}이(가) 함께하는 {theme_name} 부적
+                    </p>
+                    <div class="flex justify-center">
+                        <div class="max-w-md">
+                            <img src="data:image/png;base64,{img_base64}" alt="{theme_name} 부적" class="rounded-lg shadow-2xl" style="width: 100%; height: auto;">
                         </div>
-"""
-        html += """                    </div>
+                    </div>
                 </div>
             </section>
 """
@@ -1601,6 +1600,7 @@ if generate:
     # 부적 이미지 생성 함수
     def generate_bujeok_images_wrapper():
         try:
+            import random
             st.write("🧧 부적 이미지 생성 시작...")
             img_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "img")
             char_images = [
@@ -1613,10 +1613,35 @@ if generate:
             st.write(f"📂 발견된 캐릭터 이미지: {len(valid_chars)}개")
             
             if valid_chars and locked_openai_client:
-                base_bujeok_prompt = "Transform into a beautiful Korean fortune talisman (부적) artwork with traditional decorative borders, auspicious patterns, ornate gold and red embellishments on aged parchment background. Preserve the character's appearance while adding artistic Korean traditional elements. 3D style with elegant lighting."
-                results = generate_bujeok_images(base_bujeok_prompt, valid_chars, locked_openai_client)
-                st.write(f"✅ 부적 이미지 생성 완료: {len([r for r in results if r[2] is not None])}개")
-                return results, valid_chars
+                # 랜덤으로 캐릭터 1개 선택
+                selected_char = random.choice(valid_chars)
+                st.write(f"🎲 선택된 캐릭터: {selected_char[0]}")
+                
+                # 랜덤으로 테마 1개 선택
+                themes = [
+                    {"name": "재물운", "keywords": "wealth, prosperity, fortune, gold coins, money"},
+                    {"name": "연애운", "keywords": "love, romance, heart, relationships, harmony"},
+                    {"name": "건강운", "keywords": "health, vitality, wellness, energy, longevity"},
+                    {"name": "직장운", "keywords": "career, success, achievement, growth, promotion"},
+                    {"name": "소망운", "keywords": "wishes, dreams, goals, aspirations, fulfillment"},
+                    {"name": "이사운", "keywords": "moving, new home, journey, change, fresh start"}
+                ]
+                selected_theme = random.choice(themes)
+                st.write(f"🎲 선택된 테마: {selected_theme['name']}")
+                
+                # 테마에 맞는 부적 프롬프트
+                base_bujeok_prompt = f"Transform into a beautiful Korean fortune talisman (부적) for {selected_theme['name']} ({selected_theme['keywords']}). The talisman should feature traditional decorative borders, auspicious patterns related to {selected_theme['keywords']}, ornate gold and red embellishments on aged parchment background. Preserve the character's cute and lovely appearance while adding artistic Korean traditional elements. 3D style with elegant lighting and mystical atmosphere."
+                
+                # 단일 이미지만 생성
+                results = generate_bujeok_images(base_bujeok_prompt, [selected_char], locked_openai_client)
+                st.write(f"✅ 부적 이미지 생성 완료")
+                
+                # 결과에 테마 정보 추가
+                if results and results[0][2] is not None:
+                    # (char_name, prompt, image) -> (char_name, theme_name, prompt, image)
+                    enhanced_results = [(results[0][0], selected_theme['name'], results[0][1], results[0][2])]
+                    return enhanced_results, [selected_char]
+                return [], []
             return [], []
         except Exception as e:
             st.error(f"부적 이미지 생성 중 오류: {e}")
@@ -1677,24 +1702,25 @@ if generate:
     # 부적 이미지 처리
     bujeok_results = []
     if bujeok_results_raw:
-        st.markdown("#### 🧧 부적 이미지 (3D 스타일)")
-        cols = st.columns(len(bujeok_results_raw))
+        st.markdown("#### 🧧 행운의 부적")
         
-        for idx, (char_name, prompt, img) in enumerate(bujeok_results_raw):
-            if img:
-                # base64로 인코딩
-                bujeok_buffered = BytesIO()
-                img.save(bujeok_buffered, format="PNG")
-                img_b64 = base64.b64encode(bujeok_buffered.getvalue()).decode()
-                bujeok_results.append((char_name, img_b64))
-                
-                # 화면에 표시
-                with cols[idx]:
-                    st.image(img, caption=f"{char_name} 부적", use_container_width=True)
-                    with st.expander("생성된 프롬프트"):
-                        st.text(prompt if prompt else "프롬프트 생성 실패")
-        
-        if not bujeok_results:
+        # 단일 부적 표시
+        char_name, theme_name, prompt, img = bujeok_results_raw[0]
+        if img:
+            # base64로 인코딩
+            bujeok_buffered = BytesIO()
+            img.save(bujeok_buffered, format="PNG")
+            img_b64 = base64.b64encode(bujeok_buffered.getvalue()).decode()
+            bujeok_results.append((char_name, theme_name, img_b64))
+            
+            # 화면에 표시 (중앙 정렬)
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                st.markdown(f"**{theme_name} 부적 ({char_name})**")
+                st.image(img, use_container_width=True)
+                with st.expander("생성된 프롬프트"):
+                    st.text(prompt if prompt else "프롬프트 생성 실패")
+        else:
             st.warning("부적 이미지 생성에 실패했습니다.")
     elif not valid_chars:
         st.info("img 폴더에 캐릭터 이미지(nana.png, Bbanya.png, Angmond.png)가 없습니다. 부적 생성을 건너뜁니다.")
