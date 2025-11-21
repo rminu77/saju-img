@@ -108,16 +108,20 @@ def get_openai_client():
     if not OPENAI_API_KEY or not OpenAI:
         return None
     try:
-        # httpx 클라이언트로 프록시 환경 변수 자동 적용 (trust_env=True가 기본값)
+        # httpx 클라이언트로 프록시 환경 변수 자동 적용 및 타임아웃 설정
         try:
             import httpx
             # trust_env=True로 HTTP_PROXY, HTTPS_PROXY 환경 변수 사용
-            http_client = httpx.Client(trust_env=True)
+            # 타임아웃: 연결 60초, 읽기 300초 (이미지 생성은 시간이 걸림)
+            http_client = httpx.Client(
+                trust_env=True,
+                timeout=httpx.Timeout(connect=60.0, read=300.0, write=60.0, pool=60.0)
+            )
             client = OpenAI(api_key=OPENAI_API_KEY, http_client=http_client)
             return client
         except ImportError:
-            # httpx가 없으면 기본 클라이언트 사용
-            client = OpenAI(api_key=OPENAI_API_KEY)
+            # httpx가 없으면 기본 클라이언트 사용 (타임아웃 300초)
+            client = OpenAI(api_key=OPENAI_API_KEY, timeout=300.0)
             return client
     except Exception as e:
         st.warning(f"OpenAI 클라이언트 초기화 실패: {e}")
@@ -331,9 +335,13 @@ def generate_images(
     return images
 
 def generate_bujeok_image_single(prompt: str, image_path: str, openai_client: OpenAI):
-    """프롬프트로 단일 부적 이미지를 생성하는 함수 (병렬 처리용)"""
+    """프롬프트로 단일 부적 이미지를 생성하는 함수"""
+    import sys
+    print(f"[부적생성] 이미지 파일 열기 시작: {image_path}", file=sys.stderr)
+    
     # images.edit 사용하여 캐릭터 보존하면서 스타일 변경
     with open(image_path, "rb") as img_file:
+        print(f"[부적생성] OpenAI API 호출 시작 (images.edit)", file=sys.stderr)
         response = openai_client.images.edit(
             model="gpt-image-1",
             image=img_file,
@@ -341,16 +349,24 @@ def generate_bujeok_image_single(prompt: str, image_path: str, openai_client: Op
             n=1,
             size="1024x1536"
         )
+        print(f"[부적생성] OpenAI API 응답 받음", file=sys.stderr)
     
     if response.data:
         img_data = response.data[0]
+        print(f"[부적생성] 이미지 데이터 추출 중", file=sys.stderr)
         if getattr(img_data, "url", None):
-            image_bytes = requests.get(img_data.url).content
+            print(f"[부적생성] URL에서 이미지 다운로드 중", file=sys.stderr)
+            image_bytes = requests.get(img_data.url, timeout=60).content
         else:
+            print(f"[부적생성] base64 디코딩 중", file=sys.stderr)
             image_bytes = base64.b64decode(img_data.b64_json)
         
+        print(f"[부적생성] PIL 이미지 변환 중", file=sys.stderr)
         img = Image.open(BytesIO(image_bytes)).convert("RGBA")
+        print(f"[부적생성] 부적 이미지 생성 완료!", file=sys.stderr)
         return img
+    
+    print(f"[부적생성] 응답 데이터가 없음", file=sys.stderr)
     return None
 
 def generate_bujeok_images(base_prompt: str, char_images: list, openai_client: OpenAI):
@@ -359,19 +375,26 @@ def generate_bujeok_images(base_prompt: str, char_images: list, openai_client: O
     char_images: [(name, path), ...] 형식의 리스트
     반환: [(name, prompt, image), ...] 형식의 리스트
     """
+    import sys
     results = []
     
+    print(f"[부적생성] 총 {len(char_images)}개 캐릭터 부적 생성 시작", file=sys.stderr)
+    
     # 순차적으로 이미지 생성 (Streamlit 안정성 확보)
-    for char_name, img_path in char_images:
+    for idx, (char_name, img_path) in enumerate(char_images, 1):
         try:
+            print(f"[부적생성] {idx}/{len(char_images)}: {char_name} 부적 생성 시작", file=sys.stderr)
             img = generate_bujeok_image_single(base_prompt, img_path, openai_client)
             results.append((char_name, base_prompt, img))
+            print(f"[부적생성] {idx}/{len(char_images)}: {char_name} 부적 생성 완료", file=sys.stderr)
         except Exception as exc:
             # 에러 발생 시에도 계속 진행
-            import sys
+            import traceback
             print(f"⚠️ {char_name} 부적 생성 실패: {exc}", file=sys.stderr)
+            print(traceback.format_exc(), file=sys.stderr)
             results.append((char_name, base_prompt, None))
     
+    print(f"[부적생성] 전체 부적 생성 완료: {len(results)}개", file=sys.stderr)
     return results
 
 def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
@@ -1592,7 +1615,9 @@ if generate:
 
     # 부적 이미지 생성 함수 (OpenAI 단독 생성)
     def generate_bujeok_images_wrapper():
+        import sys
         try:
+            print("[부적Wrapper] 부적 생성 시작", file=sys.stderr)
             import random
             img_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "img")
             char_images = [
@@ -1601,11 +1626,14 @@ if generate:
                 ("앙몬드", os.path.join(img_dir, "Angmond.png"))
             ]
             
+            print(f"[부적Wrapper] 캐릭터 이미지 경로 확인 중...", file=sys.stderr)
             valid_chars = [(name, path) for name, path in char_images if os.path.exists(path)]
+            print(f"[부적Wrapper] 발견된 캐릭터: {len(valid_chars)}개 - {[name for name, _ in valid_chars]}", file=sys.stderr)
             
             if valid_chars and locked_openai_client:
                 # 랜덤으로 캐릭터 1개 선택
                 selected_chars = random.sample(valid_chars, 1)
+                print(f"[부적Wrapper] 선택된 캐릭터: {selected_chars[0][0]}", file=sys.stderr)
                 
                 # 랜덤으로 테마 1개 선택
                 themes = [
@@ -1617,16 +1645,22 @@ if generate:
                     {"name": "이사운", "keywords": "moving, new home, journey, change, fresh start"}
                 ]
                 selected_themes = random.sample(themes, 1)
+                print(f"[부적Wrapper] 선택된 테마: {selected_themes[0]['name']}", file=sys.stderr)
                 
                 enhanced_results = []
                 
                 # OpenAI로 부적 생성 (캐릭터 부적 - 이미지 편집)
+                print(f"[부적Wrapper] 부적 프롬프트 생성 중...", file=sys.stderr)
                 openai_prompt = locked_bujeok_prompt.format(
                     theme_name=selected_themes[0]['name'],
                     theme_keywords=selected_themes[0]['keywords']
                 )
+                print(f"[부적Wrapper] generate_bujeok_images() 호출", file=sys.stderr)
                 openai_results = generate_bujeok_images(openai_prompt, [selected_chars[0]], locked_openai_client)
+                print(f"[부적Wrapper] generate_bujeok_images() 완료, 결과 개수: {len(openai_results)}", file=sys.stderr)
+                
                 if openai_results and openai_results[0][2] is not None:
+                    print(f"[부적Wrapper] 부적 이미지 생성 성공!", file=sys.stderr)
                     enhanced_results.append((
                         openai_results[0][0],  # 캐릭터 이름
                         selected_themes[0]['name'], 
@@ -1634,8 +1668,11 @@ if generate:
                         openai_results[0][1], 
                         openai_results[0][2]
                     ))
+                else:
+                    print(f"[부적Wrapper] 부적 이미지가 None입니다", file=sys.stderr)
                 
                 if enhanced_results:
+                    print(f"[부적Wrapper] 최종 결과: 성공 ({len(enhanced_results)}개)", file=sys.stderr)
                     return {
                         "success": True, 
                         "results": enhanced_results, 
@@ -1645,11 +1682,16 @@ if generate:
                         "logs": []
                     }
                 
+                print(f"[부적Wrapper] 최종 결과: 실패 (enhanced_results가 비어있음)", file=sys.stderr)
                 return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": "OpenAI 이미지 생성 실패", "logs": []}
-            return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": "캐릭터 이미지 또는 OpenAI 클라이언트 없음", "logs": []}
+            
+            print(f"[부적Wrapper] valid_chars 또는 openai_client가 없음", file=sys.stderr)
+            return {"success": False, "results": [], "valid_chars": [], "char_count": 0, "error": "캐릭터 이미지 또는 OpenAI 클라이언트 없음", "logs": []}
         except Exception as e:
             import traceback
-            return {"success": False, "results": [], "valid_chars": [], "char_count": 0, "error": f"{str(e)}\n{traceback.format_exc()}", "logs": []}
+            error_msg = f"{str(e)}\n{traceback.format_exc()}"
+            print(f"[부적Wrapper] 예외 발생: {error_msg}", file=sys.stderr)
+            return {"success": False, "results": [], "valid_chars": [], "char_count": 0, "error": error_msg, "logs": []}
 
     # 사주 이미지와 부적 이미지를 순차적으로 생성 (안정성 확보 및 디버깅 용이)
     # 병렬 처리 시 원인 불명의 중단 현상이 발생하여 순차 처리로 변경함
@@ -1683,19 +1725,27 @@ if generate:
     bujeok_status = None
     bujeok_error = None
     
-    with st.spinner("🧧 행운의 부적을 생성 중입니다..."):
+    # st.status()를 사용하여 세부 진행 상황 표시
+    with st.status("🧧 행운의 부적을 생성 중입니다...", expanded=True) as status:
         try:
+            st.write("📂 캐릭터 이미지 확인 중...")
             bujeok_result = generate_bujeok_images_wrapper()
             
             if bujeok_result["success"]:
                 bujeok_results_raw = bujeok_result["results"]
                 valid_chars = bujeok_result["valid_chars"]
                 bujeok_status = f"✅ 부적 이미지 {len(bujeok_result['results'])}개 생성 완료 (캐릭터: {bujeok_result['char_count']}개)"
+                st.write("✅ 부적 생성 완료!")
+                status.update(label="✅ 부적 생성 완료!", state="complete")
             else:
                 bujeok_error = f"부적 이미지 생성 실패: {bujeok_result.get('error', '알 수 없는 오류')}"
+                st.write(f"❌ {bujeok_error}")
+                status.update(label="⚠️ 부적 생성 실패", state="error")
         except Exception as e:
             import traceback
             bujeok_error = f"부적 이미지 생성 중 오류 발생: {e}\n{traceback.format_exc()}"
+            st.write(f"❌ 예외 발생: {str(e)}")
+            status.update(label="⚠️ 부적 생성 중 오류", state="error")
     
     # 스피너 밖에서 결과 표시
     if bujeok_status:
