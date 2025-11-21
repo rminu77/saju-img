@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 import requests
 from typing import Optional
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError
 
 try:
     from openai import OpenAI
@@ -113,16 +113,16 @@ def get_openai_client():
         try:
             import httpx
             # trust_env=True로 HTTP_PROXY, HTTPS_PROXY 환경 변수 사용
-            # 타임아웃: 연결 60초, 읽기 300초 (이미지 생성은 시간이 걸림)
+            # 타임아웃: 연결 60초, 읽기 150초 (이미지 생성 평균 30초~2분)
             http_client = httpx.Client(
                 trust_env=True,
-                timeout=httpx.Timeout(connect=60.0, read=300.0, write=60.0, pool=60.0)
+                timeout=httpx.Timeout(connect=60.0, read=150.0, write=60.0, pool=60.0)
             )
             client = OpenAI(api_key=OPENAI_API_KEY, http_client=http_client)
             return client
         except ImportError:
-            # httpx가 없으면 기본 클라이언트 사용 (타임아웃 300초)
-            client = OpenAI(api_key=OPENAI_API_KEY, timeout=300.0)
+            # httpx가 없으면 기본 클라이언트 사용 (타임아웃 150초)
+            client = OpenAI(api_key=OPENAI_API_KEY, timeout=150.0)
             return client
     except Exception as e:
         st.warning(f"OpenAI 클라이언트 초기화 실패: {e}")
@@ -350,7 +350,7 @@ def generate_images(
                 if getattr(img_data, "b64_json", None):
                     img_bytes = base64.b64decode(img_data.b64_json)
                 elif getattr(img_data, "url", None):
-                    img_bytes = requests.get(img_data.url).content
+                    img_bytes = requests.get(img_data.url, timeout=120).content
 
                 img = Image.open(BytesIO(img_bytes)).convert("RGBA") if img_bytes else None
                 images.append(img)
@@ -1798,42 +1798,61 @@ if generate:
                 future_bujeok: "부적"
             }
             
-            for future in as_completed(futures):
-                task_name = futures[future]
-                try:
-                    print(f"[병렬생성] {task_name} 작업 완료됨", file=sys.stderr)
+            try:
+                for future in as_completed(futures, timeout=360):  # 전체 6분 타임아웃
+                    task_name = futures[future]
+                    try:
+                        print(f"[병렬생성] {task_name} 작업 완료됨", file=sys.stderr)
+                        
+                        if task_name == "사주":
+                            saju_result = future.result(timeout=180)  # 사주 이미지 최대 3분
+                            print(f"[병렬생성] 사주 결과 획득: success={saju_result.get('success')}", file=sys.stderr)
+                            if saju_result["success"]:
+                                saju_img = saju_result["image"]
+                                print("[병렬생성] 사주 이미지 저장 완료", file=sys.stderr)
+                            else:
+                                saju_error = f"사주 이미지 생성 실패: {saju_result.get('error', '알 수 없는 오류')}"
+                                print(f"[병렬생성] {saju_error}", file=sys.stderr)
+                        
+                        elif task_name == "부적":
+                            bujeok_result = future.result(timeout=180)  # 부적 이미지 최대 3분
+                            print(f"[병렬생성] 부적 결과 획득: success={bujeok_result.get('success')}", file=sys.stderr)
+                            if bujeok_result["success"]:
+                                bujeok_results_raw = bujeok_result["results"]
+                                valid_chars = bujeok_result["valid_chars"]
+                                bujeok_status = f"✅ 부적 이미지 {len(bujeok_result['results'])}개 생성 완료"
+                                print(f"[병렬생성] 부적 결과 저장 완료: {len(bujeok_results_raw)}개", file=sys.stderr)
+                            else:
+                                bujeok_error = f"부적 이미지 생성 실패: {bujeok_result.get('error', '알 수 없는 오류')}"
+                                print(f"[병렬생성] {bujeok_error}", file=sys.stderr)
                     
-                    if task_name == "사주":
-                        saju_result = future.result()
-                        print(f"[병렬생성] 사주 결과 획득: success={saju_result.get('success')}", file=sys.stderr)
-                        if saju_result["success"]:
-                            saju_img = saju_result["image"]
-                            print("[병렬생성] 사주 이미지 저장 완료", file=sys.stderr)
-                        else:
-                            saju_error = f"사주 이미지 생성 실패: {saju_result.get('error', '알 수 없는 오류')}"
-                            print(f"[병렬생성] {saju_error}", file=sys.stderr)
+                    except TimeoutError as e:
+                        timeout_msg = f"{task_name} 작업 타임아웃 (3분 초과): {e}"
+                        print(f"[병렬생성] ⏱️ {timeout_msg}", file=sys.stderr)
+                        
+                        if task_name == "사주":
+                            saju_error = timeout_msg
+                        elif task_name == "부적":
+                            bujeok_error = timeout_msg
                     
-                    elif task_name == "부적":
-                        bujeok_result = future.result()
-                        print(f"[병렬생성] 부적 결과 획득: success={bujeok_result.get('success')}", file=sys.stderr)
-                        if bujeok_result["success"]:
-                            bujeok_results_raw = bujeok_result["results"]
-                            valid_chars = bujeok_result["valid_chars"]
-                            bujeok_status = f"✅ 부적 이미지 {len(bujeok_result['results'])}개 생성 완료"
-                            print(f"[병렬생성] 부적 결과 저장 완료: {len(bujeok_results_raw)}개", file=sys.stderr)
-                        else:
-                            bujeok_error = f"부적 이미지 생성 실패: {bujeok_result.get('error', '알 수 없는 오류')}"
-                            print(f"[병렬생성] {bujeok_error}", file=sys.stderr)
-                
-                except Exception as e:
-                    import traceback
-                    error_msg = f"{task_name} 작업 중 예외: {e}\n{traceback.format_exc()}"
-                    print(f"[병렬생성] {error_msg}", file=sys.stderr)
-                    
-                    if task_name == "사주":
-                        saju_error = error_msg
-                    elif task_name == "부적":
-                        bujeok_error = error_msg
+                    except Exception as e:
+                        import traceback
+                        error_msg = f"{task_name} 작업 중 예외: {e}\n{traceback.format_exc()}"
+                        print(f"[병렬생성] {error_msg}", file=sys.stderr)
+                        
+                        if task_name == "사주":
+                            saju_error = error_msg
+                        elif task_name == "부적":
+                            bujeok_error = error_msg
+            
+            except TimeoutError:
+                # as_completed 전체 타임아웃
+                overall_timeout_msg = "⏱️ 전체 작업 타임아웃 (6분 초과) - 일부 작업이 완료되지 못했습니다"
+                print(f"[병렬생성] {overall_timeout_msg}", file=sys.stderr)
+                if not saju_img:
+                    saju_error = "사주 이미지 생성 타임아웃"
+                if not bujeok_status:
+                    bujeok_error = "부적 이미지 생성 타임아웃"
             
             print("[병렬생성] 모든 작업 완료, ThreadPoolExecutor 종료", file=sys.stderr)
     
