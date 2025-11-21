@@ -39,7 +39,7 @@ st.set_page_config(page_title="사주 → HTML 생성기", page_icon="🧧", lay
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 TEXT_MODEL = "gemini-2.5-pro"                 # 프롬프트 작성 모델
-IMAGE_MODEL = "gemini-2.5-flash-image-preview"  # 이미지 생성 모델
+IMAGE_MODEL = "gemini-3-pro-image-preview"  # 이미지 생성 모델
 OPENAI_TEXT_MODEL = "gpt-4.1-mini"  # 장면 요약 모델
 OPENAI_IMAGE_MODEL = "gpt-image-1"
 OPENAI_IMAGE_SIZE = "1024x1024"
