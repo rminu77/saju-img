@@ -167,21 +167,38 @@ def summarize_to_three_lines(
 
 def summarize_scene_to_korean_three_lines(
     scene_text: str,
+    chongun_text: str = "",
     openai_client: Optional[OpenAI] = None,
 ) -> str:
     """
-    영문 장면 요약을 한글로 3줄 정리
+    영문 장면 요약과 총운 내용을 함께 활용하여 한글로 3줄 정리
     """
-    system_instruction = """당신은 이미지 장면 설명을 한글로 간결하게 요약하는 전문가입니다.
+    system_instruction = """당신은 이미지 장면 설명과 운세 내용을 결합하여 한글로 간결하게 요약하는 전문가입니다.
 
 요약 규칙:
 - 정확히 3줄로 요약
-- 각 줄은 핵심 시각적 요소 하나씩
+- 장면의 시각적 요소와 운세의 핵심 메시지를 자연스럽게 융합
+- 각 줄은 의미있는 핵심 포인트 하나씩
 - 한글로 자연스럽게 표현
 - 이모지 사용 금지
 - 명확하고 구체적으로"""
 
-    user_msg = f"""다음 이미지 장면 설명을 한글로 정확히 3줄로 요약해주세요:
+    if chongun_text:
+        user_msg = f"""다음 이미지 장면 설명과 총운 내용을 함께 고려하여 한글로 정확히 3줄로 요약해주세요:
+
+[이미지 장면 설명]
+{scene_text}
+
+[총운 내용]
+{chongun_text}
+
+[요구사항]
+- 한글로 3줄 요약
+- 각 줄은 한 문장
+- 장면의 시각적 요소와 운세의 핵심을 자연스럽게 결합
+- 독자가 이미지와 운세의 연결고리를 이해할 수 있도록"""
+    else:
+        user_msg = f"""다음 이미지 장면 설명을 한글로 정확히 3줄로 요약해주세요:
 
 {scene_text}
 
@@ -442,7 +459,7 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
     """
     19개 섹션 내용을 받아서 HTML을 생성
     image_base64: base64로 인코딩된 이미지 데이터
-    chongun_summary: 장면 요약 한글 3줄 정리
+    chongun_summary: 장면 요약 + 총운 내용 한글 3줄 정리
     bujeok_images: 부적 이미지 리스트 [(char_name, theme_name, model_name, base64), ...]
     """
     # 디버깅: HTML 생성 함수에 전달된 sections 확인 (주석 처리 - 필요시 활성화)
@@ -576,10 +593,10 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                     이미지로 보는 내 사주
                 </p>
 """
-            # 장면 요약 3줄을 이미지 위에 표시
+            # 장면 요약 + 총운 3줄을 이미지 위에 표시
             if chongun_summary:
                 html += f"""
-                <!-- 핵심 장면 3줄 요약 -->
+                <!-- 핵심 장면 + 총운 3줄 요약 -->
                 <div class="mb-6 p-5 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg max-w-2xl mx-auto">
                     <div class="text-base text-gray-800 leading-relaxed whitespace-pre-line">
 {chongun_summary}
@@ -1597,19 +1614,21 @@ if generate:
     
     progress_log.success("✅ 1/6 단계 완료: 핵심 장면 추출")
 
-    # 장면 요약을 한글 3줄로 정리
-    progress_log.info("🔄 2/6 단계: 장면 요약 한글 3줄 정리 중...")
+    # 장면 요약과 총운 내용을 함께 한글 3줄로 정리
+    progress_log.info("🔄 2/6 단계: 장면 요약 + 총운 한글 3줄 정리 중...")
     with st.spinner("📋 장면 요약 정리 중 (gpt-4.1-mini 사용)..."):
         try:
+            chongun_text = sections.get("핵심포인트(새해신수)", "").strip() + "\n\n" + sections.get("올해의총운(새해신수)", "").strip()
             scene_summary_korean = summarize_scene_to_korean_three_lines(
-                core_scene,
+                scene_text=core_scene,
+                chongun_text=chongun_text,
                 openai_client=locked_openai_client
             )
         except Exception as exc:
             st.warning(f"장면 요약 정리 중 오류: {exc}")
             scene_summary_korean = ""
     
-    progress_log.success("✅ 2/6 단계 완료: 장면 요약 한글 3줄 정리")
+    progress_log.success("✅ 2/6 단계 완료: 장면 요약 + 총운 한글 3줄 정리")
 
     progress_log.info("🔄 3/6 단계: 이미지 프롬프트 작성 중...")
     with st.spinner("📝 프롬프트 작성 중..."):
