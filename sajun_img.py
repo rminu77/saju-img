@@ -1642,16 +1642,35 @@ if generate:
                         char_name, char_path = selected_chars[1]
                         char_image = Image.open(char_path).convert("RGBA")
                         
-                        # 1단계: gemini-3-pro-preview로 캐릭터 분석
-                        analysis_prompt = """Analyze this character image comprehensively. Provide:
-            
-            1. Physical Appearance: Detailed description of facial features, body type, pose
-            2. Clothing & Accessories: All visible items and their details
-            3. Art Style: Specific art style and rendering technique
-            4. Color Palette: Main colors used, lighting
-            5. Unique Features: Distinctive characteristics
-            
-            Provide a detailed paragraph for each category, then a concise summary."""
+                        # 1단계: gemini-3-pro-preview로 캐릭터 초상세 분석
+                        analysis_prompt = """Analyze this character image in EXTREME DETAIL for image generation. Provide:
+
+1. EXACT Physical Appearance:
+   - Face: Eye shape, size, color, expression, eyebrow style, nose shape, mouth shape, skin tone
+   - Hair: Exact style, length, color, texture, accessories
+   - Body: Build, height proportions, pose, gesture
+   - Every visible detail
+
+2. EXACT Clothing & Accessories:
+   - Every piece of clothing with colors, patterns, textures
+   - All accessories, jewelry, props with exact descriptions
+   - Material appearance (fabric, metal, etc.)
+
+3. Art Style & Rendering:
+   - Specific style name (3D, anime, cartoon, etc.)
+   - Line work, shading technique, rendering quality
+   - Texture and material details
+
+4. Color Palette:
+   - Dominant colors with specific shades
+   - Lighting direction and color temperature
+   - Shadow and highlight colors
+
+5. Unique Identifying Features:
+   - Any distinctive marks, expressions, or characteristics
+   - Character personality conveyed through design
+
+Provide COMPREHENSIVE details in each category. Be as specific as possible - imagine you need to recreate this character exactly from text alone."""
                         
                         analysis_response = gemini_client.models.generate_content(
                             model=TEXT_MODEL,  # gemini-3-pro-preview
@@ -1660,38 +1679,38 @@ if generate:
                         
                         analysis_text = analysis_response.text if analysis_response.text else "Analysis failed"
                         
-                        # 2단계: 분석 결과를 요약
-                        summary_prompt = f"Based on this analysis: {analysis_text}\n\nCreate a one-paragraph summary capturing essential elements for image generation."
-                        
-                        summary_response = gemini_client.models.generate_content(
-                            model=TEXT_MODEL,  # gemini-3-pro-preview
-                            contents=summary_prompt
-                        )
-                        
-                        char_summary = summary_response.text if summary_response.text else analysis_text[:200]
-                        
-                        # 3단계: 부적 생성 프롬프트에 캐릭터 분석 결과 포함
+                        # 2단계: 부적 생성 프롬프트 작성
                         gemini_bujeok_prompt = locked_bujeok_prompt.format(
                             theme_name=selected_themes[1]['name'],
                             theme_keywords=selected_themes[1]['keywords']
                         )
                         
-                        # 4단계: Gemini multimodal 호출로 부적 이미지 생성 (이미지 + 텍스트)
+                        # 3단계: 완전한 text-to-image 프롬프트 생성 (캐릭터 재현 + 부적 변환)
                         from google.genai import types
-                        enhanced_prompt = f"""Transform the character in this image into a beautiful Korean fortune talisman (부적).
+                        full_prompt = f"""Create a vertical Korean fortune talisman (부적) artwork featuring this character:
 
-Character Analysis: {char_summary}
+CHARACTER DESCRIPTION (recreate this character exactly):
+{analysis_text}
 
-Talisman Requirements: {gemini_bujeok_prompt}
+TALISMAN TRANSFORMATION:
+{gemini_bujeok_prompt}
 
-Maintain the character's unique features while transforming them into a talisman artwork."""
+IMPORTANT:
+- Recreate the character EXACTLY as described above
+- Transform the setting and styling into a traditional Korean talisman aesthetic
+- Maintain ALL character features (face, hair, clothing, colors, style)
+- Surround with talisman elements: golden borders, ritual symbols, lucky patterns
+- Add theme-specific symbolic objects and motifs for {selected_themes[1]['name']} ({selected_themes[1]['keywords']})
+- 9:16 vertical aspect ratio
+- Aged parchment background with Korean paper texture
+- 3D style with soft cinematic lighting
+- Isolated on clean white background
+- NO text, letters, or watermarks"""
                         
+                        # 4단계: Text-to-image 생성 (이미지는 참고용으로만 포함)
                         response = gemini_client.models.generate_content(
                             model=IMAGE_MODEL,
-                            contents=[
-                                char_image,  # 캐릭터 이미지
-                                enhanced_prompt
-                            ],
+                            contents=f"Create a picture of: {full_prompt}",
                             config=types.GenerateContentConfig(
                                 image_config=types.ImageConfig(
                                     aspect_ratio="9:16",
@@ -1713,7 +1732,7 @@ Maintain the character's unique features while transforming them into a talisman
                                 char_name,  # 캐릭터 이름
                                 selected_themes[1]['name'],
                                 "Gemini (캐릭터 부적)",
-                                f"분석: {char_summary[:100]}...\n\n{gemini_bujeok_prompt}",
+                                f"캐릭터 분석 기반 생성\n테마: {selected_themes[1]['name']} ({selected_themes[1]['keywords']})",
                                 gemini_img
                             ))
                     except Exception as gemini_error:
