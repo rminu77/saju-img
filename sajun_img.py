@@ -300,16 +300,16 @@ def generate_images(
 
     for _ in range(num_images):
         try:
-            from google.genai import types
+            # types.ImageConfig 오류 해결을 위해 딕셔너리 형태로 설정 전달
             response = gemini_client.models.generate_content(
                 model=IMAGE_MODEL,
                 contents=f"Create a picture of: {prompt}",
-                config=types.GenerateContentConfig(
-                    image_config=types.ImageConfig(
-                        aspect_ratio="9:16",
-                        image_size="4K"
-                    )
-                )
+                config={
+                    'image_config': {
+                        'aspect_ratio': "9:16"
+                        # 'image_size': "4K" # 에러 가능성 있어 제외
+                    }
+                }
             )
 
             # google-genai 응답에서 이미지 추출
@@ -1715,15 +1715,15 @@ Negative Prompt: text, letters, watermarks, distorted face, bad anatomy, multipl
                         
                         # 4단계: Text-to-image 생성
                         # 이미지 생성 모델은 "Create a picture of"와 같은 지시어가 필요할 수 있음
+                        # types.ImageConfig 오류 해결을 위해 딕셔너리 형태로 설정 전달
                         response = gemini_client.models.generate_content(
                             model=IMAGE_MODEL,
                             contents=full_prompt,
-                            config=types.GenerateContentConfig(
-                                image_config=types.ImageConfig(
-                                    aspect_ratio="9:16"
-                                    # image_size 파라미터는 모델에 따라 지원 여부가 다를 수 있어 생략하거나 "4K" 시도
-                                )
-                            )
+                            config={
+                                'image_config': {
+                                    'aspect_ratio': "9:16"
+                                }
+                            }
                         )
                         
                         gemini_img = None
