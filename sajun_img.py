@@ -1764,19 +1764,22 @@ Negative Prompt: text, letters, watermarks, distorted face, bad anatomy, multipl
                         "results": enhanced_results, 
                         "valid_chars": selected_chars,
                         "char_count": len(valid_chars),
-                        "error": None
+                        "error": None,
+                        "logs": gemini_logs if 'gemini_logs' in locals() else []
                     }
                 
                 # 실패 시 로그를 error 메시지에 포함
                 error_msg = "이미지 생성 실패"
+                logs_to_return = []
                 if gemini_client and 'gemini_logs' in locals() and gemini_logs:
                     error_msg += "\nGemini 로그:\n" + "\n".join(gemini_logs)
+                    logs_to_return = gemini_logs
                     
-                return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": error_msg}
-            return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": "캐릭터 이미지 또는 API 클라이언트 없음"}
+                return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": error_msg, "logs": logs_to_return}
+            return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": "캐릭터 이미지 또는 API 클라이언트 없음", "logs": []}
         except Exception as e:
             import traceback
-            return {"success": False, "results": [], "valid_chars": [], "char_count": 0, "error": f"{str(e)}\n{traceback.format_exc()}"}
+            return {"success": False, "results": [], "valid_chars": [], "char_count": 0, "error": f"{str(e)}\n{traceback.format_exc()}", "logs": []}
 
     # 사주 이미지와 부적 이미지를 동시에 생성
     with st.spinner("🎨 사주 이미지와 부적 이미지를 동시에 생성 중... (병렬 처리)"):
@@ -1803,6 +1806,16 @@ Negative Prompt: text, letters, watermarks, distorted face, bad anatomy, multipl
             
             try:
                 bujeok_result = bujeok_future.result(timeout=300)
+                
+                # Gemini 로그가 있으면 출력 (성공 여부와 무관하게)
+                if bujeok_result.get("logs"):
+                    with st.expander("Gemini 부적 생성 로그 (디버깅용)", expanded=True):
+                        for log in bujeok_result["logs"]:
+                            if "❌" in log or "실패" in log or "예외" in log:
+                                st.error(log)
+                            else:
+                                st.text(log)
+                
                 if bujeok_result["success"]:
                     st.write(f"📂 발견된 캐릭터 이미지: {bujeok_result['char_count']}개")
                     st.write(f"✅ 부적 이미지 {len(bujeok_result['results'])}개 생성 완료")
