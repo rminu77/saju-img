@@ -1687,34 +1687,31 @@ Provide COMPREHENSIVE details in each category. Be as specific as possible - ima
                         
                         # 3단계: 완전한 text-to-image 프롬프트 생성 (캐릭터 재현 + 부적 변환)
                         from google.genai import types
-                        full_prompt = f"""Create a vertical Korean fortune talisman (부적) artwork featuring this character:
+                        full_prompt = f"""Create a vertical Korean fortune talisman (부적) artwork featuring this character.
 
-CHARACTER DESCRIPTION (recreate this character exactly):
+CHARACTER DETAILS (You MUST recreate this character):
 {analysis_text}
 
-TALISMAN TRANSFORMATION:
+TALISMAN STYLE & THEME:
 {gemini_bujeok_prompt}
 
-IMPORTANT:
-- Recreate the character EXACTLY as described above
-- Transform the setting and styling into a traditional Korean talisman aesthetic
-- Maintain ALL character features (face, hair, clothing, colors, style)
-- Surround with talisman elements: golden borders, ritual symbols, lucky patterns
-- Add theme-specific symbolic objects and motifs for {selected_themes[1]['name']} ({selected_themes[1]['keywords']})
-- 9:16 vertical aspect ratio
-- Aged parchment background with Korean paper texture
-- 3D style with soft cinematic lighting
-- Isolated on clean white background
-- NO text, letters, or watermarks"""
+COMPOSITION INSTRUCTIONS:
+1. CENTER THE CHARACTER: Place the character in the center, recreating their appearance, pose, and clothing exactly as described.
+2. TRANSFORM STYLE: Render the character with a 3D sculpted look, integrated into the talisman style.
+3. TALISMAN ELEMENTS: Surround the character with traditional Korean talisman borders, red calligraphy-style symbols (abstract), and golden patterns.
+4. THEME OBJECTS: Incorporate symbolic objects for {selected_themes[1]['name']} ({selected_themes[1]['keywords']}) around the character.
+5. BACKGROUND: Aged yellow parchment texture with authentic Korean paper details.
+6. ATMOSPHERE: Mystical, spiritual, dignified, and auspicious.
+
+Negative Prompt: text, letters, watermarks, distorted face, bad anatomy, multiple characters, modern background."""
                         
-                        # 4단계: Text-to-image 생성 (이미지는 참고용으로만 포함)
+                        # 4단계: Text-to-image 생성
                         response = gemini_client.models.generate_content(
                             model=IMAGE_MODEL,
-                            contents=f"Create a picture of: {full_prompt}",
+                            contents=full_prompt,
                             config=types.GenerateContentConfig(
                                 image_config=types.ImageConfig(
-                                    aspect_ratio="9:16",
-                                    image_size="4K"
+                                    aspect_ratio="9:16"
                                 )
                             )
                         )
