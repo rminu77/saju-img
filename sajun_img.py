@@ -1642,19 +1642,55 @@ if generate:
                         char_name, char_path = selected_chars[1]
                         char_image = Image.open(char_path).convert("RGBA")
                         
-                        # Gemini용 프롬프트 (캐릭터 이미지를 변형하도록 지시)
+                        # 1단계: gemini-3-pro-preview로 캐릭터 분석
+                        analysis_prompt = """Analyze this character image comprehensively. Provide:
+            
+            1. Physical Appearance: Detailed description of facial features, body type, pose
+            2. Clothing & Accessories: All visible items and their details
+            3. Art Style: Specific art style and rendering technique
+            4. Color Palette: Main colors used, lighting
+            5. Unique Features: Distinctive characteristics
+            
+            Provide a detailed paragraph for each category, then a concise summary."""
+                        
+                        analysis_response = gemini_client.models.generate_content(
+                            model=TEXT_MODEL,  # gemini-3-pro-preview
+                            contents=[analysis_prompt, char_image]
+                        )
+                        
+                        analysis_text = analysis_response.text if analysis_response.text else "Analysis failed"
+                        
+                        # 2단계: 분석 결과를 요약
+                        summary_prompt = f"Based on this analysis: {analysis_text}\n\nCreate a one-paragraph summary capturing essential elements for image generation."
+                        
+                        summary_response = gemini_client.models.generate_content(
+                            model=TEXT_MODEL,  # gemini-3-pro-preview
+                            contents=summary_prompt
+                        )
+                        
+                        char_summary = summary_response.text if summary_response.text else analysis_text[:200]
+                        
+                        # 3단계: 부적 생성 프롬프트에 캐릭터 분석 결과 포함
                         gemini_bujeok_prompt = locked_bujeok_prompt.format(
                             theme_name=selected_themes[1]['name'],
                             theme_keywords=selected_themes[1]['keywords']
                         )
                         
-                        # Gemini multimodal 호출 (이미지 + 텍스트)
+                        # 4단계: Gemini multimodal 호출로 부적 이미지 생성 (이미지 + 텍스트)
                         from google.genai import types
+                        enhanced_prompt = f"""Transform the character in this image into a beautiful Korean fortune talisman (부적).
+
+Character Analysis: {char_summary}
+
+Talisman Requirements: {gemini_bujeok_prompt}
+
+Maintain the character's unique features while transforming them into a talisman artwork."""
+                        
                         response = gemini_client.models.generate_content(
                             model=IMAGE_MODEL,
                             contents=[
                                 char_image,  # 캐릭터 이미지
-                                f"Transform the character in this image into a beautiful Korean fortune talisman (부적). {gemini_bujeok_prompt}"
+                                enhanced_prompt
                             ],
                             config=types.GenerateContentConfig(
                                 image_config=types.ImageConfig(
@@ -1677,7 +1713,7 @@ if generate:
                                 char_name,  # 캐릭터 이름
                                 selected_themes[1]['name'],
                                 "Gemini (캐릭터 부적)",
-                                gemini_bujeok_prompt,
+                                f"분석: {char_summary[:100]}...\n\n{gemini_bujeok_prompt}",
                                 gemini_img
                             ))
                     except Exception as gemini_error:
