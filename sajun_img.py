@@ -1706,23 +1706,31 @@ COMPOSITION INSTRUCTIONS:
 Negative Prompt: text, letters, watermarks, distorted face, bad anatomy, multiple characters, modern background."""
                         
                         # 4단계: Text-to-image 생성
+                        # 이미지 생성 모델은 "Create a picture of"와 같은 지시어가 필요할 수 있음
                         response = gemini_client.models.generate_content(
                             model=IMAGE_MODEL,
                             contents=full_prompt,
                             config=types.GenerateContentConfig(
                                 image_config=types.ImageConfig(
                                     aspect_ratio="9:16"
+                                    # image_size 파라미터는 모델에 따라 지원 여부가 다를 수 있어 생략하거나 "4K" 시도
                                 )
                             )
                         )
                         
                         gemini_img = None
                         if response and hasattr(response, 'candidates'):
+                            # 후보가 있는지 확인
+                            if not response.candidates:
+                                print(f"Gemini 이미지 생성 실패: 후보 없음. 응답: {response}")
+                            
                             for part in response.candidates[0].content.parts:
                                 if hasattr(part, 'inline_data') and part.inline_data:
                                     img_bytes = part.inline_data.data
                                     gemini_img = Image.open(BytesIO(img_bytes)).convert("RGBA")
                                     break
+                        else:
+                            print(f"Gemini 이미지 생성 실패: 응답 없음. 응답: {response}")
                         
                         if gemini_img:
                             enhanced_results.append((
@@ -1734,6 +1742,9 @@ Negative Prompt: text, letters, watermarks, distorted face, bad anatomy, multipl
                             ))
                     except Exception as gemini_error:
                         print(f"Gemini 부적 생성 오류: {gemini_error}")
+                        # 에러를 UI에도 표시 (디버깅용)
+                        import traceback
+                        st.warning(f"Gemini 부적 생성 실패: {str(gemini_error)}")
                 
                 if enhanced_results:
                     return {
