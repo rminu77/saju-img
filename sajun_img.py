@@ -1701,7 +1701,7 @@ Provide COMPREHENSIVE details in each category. Be as specific as possible - ima
                                                 mime_type="image/png",
                                                 data=img_bytes
                                             ),
-                                            media_resolution={"level": "media_resolution_high"}
+                                            media_resolution="media_resolution_high"  # 문자열로 직접 전달
                                         )
                                     ]
                                 )
