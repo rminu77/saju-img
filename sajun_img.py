@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 import requests
 from typing import Optional
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 try:
     from openai import OpenAI
@@ -1696,154 +1697,244 @@ if generate:
     # 사주 이미지와 부적 이미지를 순차적으로 생성 (안정성 확보 및 디버깅 용이)
     # 병렬 처리 시 원인 불명의 중단 현상이 발생하여 순차 처리로 변경함
     
-    # 4. 사주 이미지 생성
-    progress_log.info("🔄 4/6 단계: 사주 이미지 생성 중...")
+    # 4-5. 사주 이미지와 부적 이미지 동시 생성 (병렬 처리)
+    import sys
+    progress_log.info("🔄 4-5/6 단계: 사주 이미지와 부적 이미지를 동시에 생성 중...")
+    print("[병렬생성] 사주 + 부적 이미지 동시 생성 시작", file=sys.stderr)
+    
     saju_img = None
     saju_error = None
-    with st.spinner("🎨 사주 이미지를 생성 중입니다..."):
-        try:
-            saju_result = generate_saju_image()
-            if saju_result["success"]:
-                saju_img = saju_result["image"]
-            else:
-                saju_error = f"사주 이미지 생성 실패: {saju_result.get('error', '알 수 없는 오류')}"
-        except Exception as e:
-            import traceback
-            saju_error = f"사주 이미지 생성 중 오류 발생: {e}\n{traceback.format_exc()}"
-    
-    # 스피너 밖에서 결과 표시
-    if saju_img:
-        progress_log.success("✅ 4/6 단계 완료: 사주 이미지 생성")
-    elif saju_error:
-        st.error(saju_error)
-        st.stop()
-            
-    # 5. 부적 이미지 생성
-    progress_log.info("🔄 5/6 단계: 부적 이미지 생성 중...")
     bujeok_results_raw = []
     valid_chars = []
     bujeok_status = None
     bujeok_error = None
     
-    # st.status()를 사용하여 세부 진행 상황 표시
-    with st.status("🧧 행운의 부적을 생성 중입니다...", expanded=True) as status:
-        try:
-            st.write("📂 캐릭터 이미지 확인 중...")
-            bujeok_result = generate_bujeok_images_wrapper()
+    with st.spinner("🎨 사주 이미지와 부적 이미지를 동시에 생성 중입니다..."):
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            print("[병렬생성] ThreadPoolExecutor 시작 (워커 2개)", file=sys.stderr)
             
-            if bujeok_result["success"]:
-                bujeok_results_raw = bujeok_result["results"]
-                valid_chars = bujeok_result["valid_chars"]
-                bujeok_status = f"✅ 부적 이미지 {len(bujeok_result['results'])}개 생성 완료 (캐릭터: {bujeok_result['char_count']}개)"
-                st.write("✅ 부적 생성 완료!")
-                status.update(label="✅ 부적 생성 완료!", state="complete")
-            else:
-                bujeok_error = f"부적 이미지 생성 실패: {bujeok_result.get('error', '알 수 없는 오류')}"
-                st.write(f"❌ {bujeok_error}")
-                status.update(label="⚠️ 부적 생성 실패", state="error")
-        except Exception as e:
-            import traceback
-            bujeok_error = f"부적 이미지 생성 중 오류 발생: {e}\n{traceback.format_exc()}"
-            st.write(f"❌ 예외 발생: {str(e)}")
-            status.update(label="⚠️ 부적 생성 중 오류", state="error")
+            # 두 작업을 동시에 제출
+            print("[병렬생성] 사주 이미지 생성 작업 제출", file=sys.stderr)
+            future_saju = executor.submit(generate_saju_image)
+            
+            print("[병렬생성] 부적 이미지 생성 작업 제출", file=sys.stderr)
+            future_bujeok = executor.submit(generate_bujeok_images_wrapper)
+            
+            # 작업 완료 대기 및 결과 수집
+            print("[병렬생성] 작업 완료 대기 중...", file=sys.stderr)
+            futures = {
+                future_saju: "사주",
+                future_bujeok: "부적"
+            }
+            
+            for future in as_completed(futures):
+                task_name = futures[future]
+                try:
+                    print(f"[병렬생성] {task_name} 작업 완료됨", file=sys.stderr)
+                    
+                    if task_name == "사주":
+                        saju_result = future.result()
+                        print(f"[병렬생성] 사주 결과 획득: success={saju_result.get('success')}", file=sys.stderr)
+                        if saju_result["success"]:
+                            saju_img = saju_result["image"]
+                            print("[병렬생성] 사주 이미지 저장 완료", file=sys.stderr)
+                        else:
+                            saju_error = f"사주 이미지 생성 실패: {saju_result.get('error', '알 수 없는 오류')}"
+                            print(f"[병렬생성] {saju_error}", file=sys.stderr)
+                    
+                    elif task_name == "부적":
+                        bujeok_result = future.result()
+                        print(f"[병렬생성] 부적 결과 획득: success={bujeok_result.get('success')}", file=sys.stderr)
+                        if bujeok_result["success"]:
+                            bujeok_results_raw = bujeok_result["results"]
+                            valid_chars = bujeok_result["valid_chars"]
+                            bujeok_status = f"✅ 부적 이미지 {len(bujeok_result['results'])}개 생성 완료"
+                            print(f"[병렬생성] 부적 결과 저장 완료: {len(bujeok_results_raw)}개", file=sys.stderr)
+                        else:
+                            bujeok_error = f"부적 이미지 생성 실패: {bujeok_result.get('error', '알 수 없는 오류')}"
+                            print(f"[병렬생성] {bujeok_error}", file=sys.stderr)
+                
+                except Exception as e:
+                    import traceback
+                    error_msg = f"{task_name} 작업 중 예외: {e}\n{traceback.format_exc()}"
+                    print(f"[병렬생성] {error_msg}", file=sys.stderr)
+                    
+                    if task_name == "사주":
+                        saju_error = error_msg
+                    elif task_name == "부적":
+                        bujeok_error = error_msg
+            
+            print("[병렬생성] 모든 작업 완료, ThreadPoolExecutor 종료", file=sys.stderr)
     
-    # 스피너 밖에서 결과 표시
-    if bujeok_status:
-        progress_log.success("✅ 5/6 단계 완료: 부적 이미지 생성")
-    elif bujeok_error:
-        st.warning(bujeok_error)
-        progress_log.warning("⚠️ 5/6 단계: 부적 이미지 생성 실패 (계속 진행)")
+    print("[병렬생성] 스피너 종료, 결과 확인", file=sys.stderr)
+    
+    # 결과 표시
+    if saju_img and (bujeok_status or bujeok_error):
+        progress_log.success("✅ 4-5/6 단계 완료: 사주 이미지 및 부적 이미지 생성 완료")
+        print("[병렬생성] 양쪽 작업 모두 완료", file=sys.stderr)
+    elif saju_img:
+        progress_log.success("✅ 4-5/6 단계 완료: 사주 이미지 생성 완료 (부적은 실패)")
+        if bujeok_error:
+            st.warning(bujeok_error)
+        print("[병렬생성] 사주만 성공, 부적 실패", file=sys.stderr)
+    elif saju_error:
+        st.error(saju_error)
+        print("[병렬생성] 사주 생성 실패", file=sys.stderr)
+        st.stop()
+    
+    print("[병렬생성] 병렬 생성 단계 완전 종료", file=sys.stderr)
 
     # 사주 이미지 처리
+    import sys
+    print("[UI] 사주 이미지 처리 시작", file=sys.stderr)
+    
     if not saju_img:
         st.error("사주 이미지 생성에 실패했습니다.")
         st.stop()
 
-    st.markdown("#### 🎨 생성된 사주 이미지")
-    st.image(saju_img, caption="새해운세 이미지", use_container_width=True)
+    try:
+        print("[UI] 사주 이미지 화면 표시", file=sys.stderr)
+        st.markdown("#### 🎨 생성된 사주 이미지")
+        st.image(saju_img, caption="새해운세 이미지", use_container_width=True)
+        print("[UI] 사주 이미지 표시 완료", file=sys.stderr)
+    except Exception as e:
+        print(f"[UI] 사주 이미지 표시 실패: {e}", file=sys.stderr)
+        st.error(f"이미지 표시 중 오류: {e}")
 
     # 이미지를 base64로 인코딩
+    print("[UI] 사주 이미지 base64 인코딩 시작", file=sys.stderr)
     buffered = BytesIO()
     saju_img.save(buffered, format="PNG")
     img_base64 = base64.b64encode(buffered.getvalue()).decode()
+    print(f"[UI] base64 인코딩 완료: {len(img_base64)} 문자", file=sys.stderr)
 
     # 이미지 파일도 저장 (로컬 백업용)
     image_filename = f"saju_generated_{timestamp}.png"
     try:
         image_path = os.path.join(RESULT_DIR, image_filename)
         saju_img.save(image_path, format="PNG")
+        print("[UI] 사주 이미지 파일 저장 완료", file=sys.stderr)
     except Exception as e:
-        pass  # 파일 저장 실패는 무시
+        print(f"[UI] 사주 이미지 파일 저장 실패 (무시): {e}", file=sys.stderr)
 
     # 부적 이미지 처리
+    print("[UI] 부적 이미지 처리 시작", file=sys.stderr)
     bujeok_results = []
+    
     if bujeok_results_raw:
-        st.markdown("#### 🧧 행운의 부적")
-        
-        # 1개의 부적 표시 (OpenAI)
-        for char_name, theme_name, model_name, prompt, img in bujeok_results_raw:
-            if img:
-                # base64로 인코딩
-                bujeok_buffered = BytesIO()
-                img.save(bujeok_buffered, format="PNG")
-                img_b64 = base64.b64encode(bujeok_buffered.getvalue()).decode()
-                bujeok_results.append((char_name, theme_name, model_name, img_b64))
-                
-                # 화면에 표시
-                st.markdown(f"**{theme_name} 부적**")
-                st.markdown(f"*{char_name} · {model_name}*")
-                st.image(img, use_container_width=True)
-                with st.expander("생성된 프롬프트"):
-                    st.text(prompt if prompt else "프롬프트 생성 실패")
-        
-        if not bujeok_results:
-            st.warning("부적 이미지 생성에 실패했습니다.")
+        try:
+            print(f"[UI] 부적 {len(bujeok_results_raw)}개 처리 시작", file=sys.stderr)
+            st.markdown("#### 🧧 행운의 부적")
+            
+            # 1개의 부적 표시 (OpenAI)
+            for idx, (char_name, theme_name, model_name, prompt, img) in enumerate(bujeok_results_raw, 1):
+                print(f"[UI] 부적 {idx} 처리: {char_name} - {theme_name}", file=sys.stderr)
+                if img:
+                    # base64로 인코딩
+                    print(f"[UI] 부적 {idx} base64 인코딩", file=sys.stderr)
+                    bujeok_buffered = BytesIO()
+                    img.save(bujeok_buffered, format="PNG")
+                    img_b64 = base64.b64encode(bujeok_buffered.getvalue()).decode()
+                    bujeok_results.append((char_name, theme_name, model_name, img_b64))
+                    print(f"[UI] 부적 {idx} 인코딩 완료: {len(img_b64)} 문자", file=sys.stderr)
+                    
+                    # 화면에 표시
+                    print(f"[UI] 부적 {idx} 화면 표시 시작", file=sys.stderr)
+                    st.markdown(f"**{theme_name} 부적**")
+                    st.markdown(f"*{char_name} · {model_name}*")
+                    st.image(img, use_container_width=True)
+                    with st.expander("생성된 프롬프트"):
+                        st.text(prompt if prompt else "프롬프트 생성 실패")
+                    print(f"[UI] 부적 {idx} 화면 표시 완료", file=sys.stderr)
+            
+            if not bujeok_results:
+                st.warning("부적 이미지 생성에 실패했습니다.")
+                print("[UI] 부적 결과가 비어있음", file=sys.stderr)
+            else:
+                print(f"[UI] 부적 처리 완료: {len(bujeok_results)}개", file=sys.stderr)
+        except Exception as e:
+            import traceback
+            error_msg = f"부적 이미지 처리 중 오류: {e}\n{traceback.format_exc()}"
+            print(f"[UI] 부적 처리 예외: {error_msg}", file=sys.stderr)
+            st.error(error_msg)
     elif not valid_chars:
         st.info("img 폴더에 캐릭터 이미지(nana.png, Bbanya.png, Angmond.png)가 없습니다. 부적 생성을 건너뜁니다.")
+        print("[UI] 캐릭터 이미지 없음", file=sys.stderr)
     else:
         st.warning("부적 이미지 생성 중 오류가 발생했습니다.")
+        print("[UI] 부적 생성 오류", file=sys.stderr)
+    
+    print("[UI] 부적 이미지 처리 완료, 6단계로 진행", file=sys.stderr)
 
     # 6. HTML 생성
+    import sys
     progress_log.info("🔄 6/6 단계: HTML 생성 중...")
+    print("[UI] 6단계 시작: HTML 생성", file=sys.stderr)
+    
+    html_content = None
+    html_filename = None
+    
     with st.spinner("📄 HTML 생성 중..."):
-        # 섹션 키를 HTML 생성 함수가 기대하는 형식으로 변환
-        mapped_sections = {}
-        for key, content in sections.items():
-            # "(새해신수)", "(토정비결)" 등을 제거하여 간단한 키로 변환
-            clean_key = key.replace("(새해신수)", "").replace("(토정비결)", "").replace(")", "")
-            mapped_sections[clean_key] = content
-
-        html_content = generate_html(
-            user_name=user_name,
-            gender=gender,
-            solar_date=solar_date,
-            lunar_date=lunar_date,
-            birth_time=birth_time,
-            sections=mapped_sections,
-            image_base64=img_base64,
-            chongun_summary=chongun_summary,
-            bujeok_images=bujeok_results
-        )
-
-        html_filename = f"{user_name}_tojeung_{timestamp}.html"
-
-        # 파일 저장 시도 (실패해도 계속 진행)
         try:
-            html_path = os.path.join(RESULT_DIR, html_filename)
-            with open(html_path, "w", encoding="utf-8") as f:
-                f.write(html_content)
-        except Exception as e:
-            pass  # 파일 저장 실패는 무시
+            print("[UI] 섹션 키 매핑 시작", file=sys.stderr)
+            # 섹션 키를 HTML 생성 함수가 기대하는 형식으로 변환
+            mapped_sections = {}
+            for key, content in sections.items():
+                # "(새해신수)", "(토정비결)" 등을 제거하여 간단한 키로 변환
+                clean_key = key.replace("(새해신수)", "").replace("(토정비결)", "").replace(")", "")
+                mapped_sections[clean_key] = content
+            
+            print(f"[UI] 섹션 매핑 완료: {len(mapped_sections)}개", file=sys.stderr)
+            print(f"[UI] 부적 이미지 개수: {len(bujeok_results)}", file=sys.stderr)
+            print("[UI] generate_html() 호출", file=sys.stderr)
+            
+            html_content = generate_html(
+                user_name=user_name,
+                gender=gender,
+                solar_date=solar_date,
+                lunar_date=lunar_date,
+                birth_time=birth_time,
+                sections=mapped_sections,
+                image_base64=img_base64,
+                chongun_summary=chongun_summary,
+                bujeok_images=bujeok_results
+            )
+            
+            print(f"[UI] HTML 생성 완료: {len(html_content)} 문자", file=sys.stderr)
+            
+            html_filename = f"{user_name}_tojeung_{timestamp}.html"
 
+            # 파일 저장 시도 (실패해도 계속 진행)
+            try:
+                print("[UI] HTML 파일 저장 시도", file=sys.stderr)
+                html_path = os.path.join(RESULT_DIR, html_filename)
+                with open(html_path, "w", encoding="utf-8") as f:
+                    f.write(html_content)
+                print("[UI] HTML 파일 저장 완료", file=sys.stderr)
+            except Exception as e:
+                print(f"[UI] HTML 파일 저장 실패 (무시): {e}", file=sys.stderr)
+                
+        except Exception as e:
+            import traceback
+            error_msg = f"HTML 생성 중 오류: {e}\n{traceback.format_exc()}"
+            print(f"[UI] HTML 생성 예외: {error_msg}", file=sys.stderr)
+            st.error(error_msg)
+            st.stop()
+    
+    print("[UI] 스피너 종료, 세션 상태 저장 시작", file=sys.stderr)
+    
     # 세션 상태에 결과 저장
     st.session_state.generated_html = html_content
     st.session_state.generated_image = saju_img
     st.session_state.html_filename = html_filename
+    
+    print("[UI] 세션 상태 저장 완료", file=sys.stderr)
 
     # 종료 시간 계산
     end_time = time.time()
     elapsed_time = end_time - start_time
 
+    print(f"[UI] 전체 프로세스 완료: {elapsed_time:.1f}초", file=sys.stderr)
     progress_log.success(f"✅ 6/6 단계 완료! 전체 소요 시간: {elapsed_time:.1f}초")
 
 # 채팅방 요약 버튼 클릭 시
