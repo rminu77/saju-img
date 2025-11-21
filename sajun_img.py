@@ -1690,6 +1690,8 @@ Provide COMPREHENSIVE details in each category. Be as specific as possible - ima
                         char_image.save(img_buffer, format='PNG')
                         img_bytes = img_buffer.getvalue()
                         
+                        # Gemini 3는 이미지 유형에 따라 자동으로 최적 해상도 선택
+                        # media_resolution은 현재 라이브러리 버전에서 지원되지 않으므로 제거
                         analysis_response = gemini_client.models.generate_content(
                             model=TEXT_MODEL,  # gemini-3-pro-preview
                             contents=[
@@ -1700,8 +1702,7 @@ Provide COMPREHENSIVE details in each category. Be as specific as possible - ima
                                             inline_data=types.Blob(
                                                 mime_type="image/png",
                                                 data=img_bytes
-                                            ),
-                                            media_resolution="media_resolution_high"  # 문자열로 직접 전달
+                                            )
                                         )
                                     ]
                                 )
