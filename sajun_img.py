@@ -193,7 +193,7 @@ def summarize_scene_to_korean_three_lines(
 {chongun_text}
 
 [요구사항]
-- 한글로 3줄 요약
+- 한글로 5줄 요약
 - 각 줄은 한 문장
 - 장면의 시각적 요소와 운세의 핵심을 자연스럽게 결합
 - 독자가 이미지와 운세의 연결고리를 이해할 수 있도록"""
