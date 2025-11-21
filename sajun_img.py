@@ -967,14 +967,14 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                     <h2 class="text-2xl font-semibold text-gray-800 mb-6">
                         행운의 부적
                     </h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+                    <div class="flex flex-col items-center justify-center mt-8 gap-8">
 """
         for char_name, theme_name, model_name, img_base64 in bujeok_images:
             html += f"""
-                        <div class="flex flex-col items-center">
+                        <div class="flex flex-col items-center max-w-md w-full">
                             <h3 class="text-xl font-semibold text-gray-800 mb-2">{theme_name} 부적</h3>
                             <p class="text-sm text-gray-600 mb-4">{char_name} · {model_name}</p>
-                            <img src="data:image/png;base64,{img_base64}" alt="{theme_name} 부적" class="rounded-lg shadow-xl" style="max-height: 600px; width: auto;">
+                            <img src="data:image/png;base64,{img_base64}" alt="{theme_name} 부적" class="rounded-lg shadow-xl w-full h-auto">
                         </div>
 """
         html += """                    </div>
@@ -1589,7 +1589,7 @@ if generate:
         except Exception as e:
             return {"success": False, "image": None, "error": str(e)}
 
-    # 부적 이미지 생성 함수 (OpenAI와 Gemini 각각 1개씩)
+    # 부적 이미지 생성 함수 (OpenAI 단독 생성)
     def generate_bujeok_images_wrapper():
         try:
             import random
@@ -1602,13 +1602,11 @@ if generate:
             
             valid_chars = [(name, path) for name, path in char_images if os.path.exists(path)]
             
-            if valid_chars and (locked_openai_client or gemini_client):
-                # 랜덤으로 캐릭터 2개 선택 (OpenAI용, Gemini용)
-                selected_chars = random.sample(valid_chars, min(2, len(valid_chars)))
-                if len(selected_chars) == 1:
-                    selected_chars = [selected_chars[0], selected_chars[0]]  # 캐릭터가 1개뿐이면 중복 사용
+            if valid_chars and locked_openai_client:
+                # 랜덤으로 캐릭터 1개 선택
+                selected_chars = random.sample(valid_chars, 1)
                 
-                # 랜덤으로 테마 2개 선택
+                # 랜덤으로 테마 1개 선택
                 themes = [
                     {"name": "재물운", "keywords": "wealth, prosperity, fortune, gold coins, money"},
                     {"name": "연애운", "keywords": "love, romance, heart, relationships, harmony"},
@@ -1617,173 +1615,25 @@ if generate:
                     {"name": "소망운", "keywords": "wishes, dreams, goals, aspirations, fulfillment"},
                     {"name": "이사운", "keywords": "moving, new home, journey, change, fresh start"}
                 ]
-                selected_themes = random.sample(themes, min(2, len(themes)))
-                if len(selected_themes) == 1:
-                    selected_themes = [selected_themes[0], selected_themes[0]]
+                selected_themes = random.sample(themes, 1)
                 
                 enhanced_results = []
                 
                 # OpenAI로 부적 생성 (캐릭터 부적 - 이미지 편집)
-                if locked_openai_client:
-                    openai_prompt = locked_bujeok_prompt.format(
-                        theme_name=selected_themes[0]['name'],
-                        theme_keywords=selected_themes[0]['keywords']
-                    )
-                    openai_results = generate_bujeok_images(openai_prompt, [selected_chars[0]], locked_openai_client)
-                    if openai_results and openai_results[0][2] is not None:
-                        enhanced_results.append((
-                            openai_results[0][0],  # 캐릭터 이름
-                            selected_themes[0]['name'], 
-                            "OpenAI (캐릭터 부적)",
-                            openai_results[0][1], 
-                            openai_results[0][2]
-                        ))
+                openai_prompt = locked_bujeok_prompt.format(
+                    theme_name=selected_themes[0]['name'],
+                    theme_keywords=selected_themes[0]['keywords']
+                )
+                openai_results = generate_bujeok_images(openai_prompt, [selected_chars[0]], locked_openai_client)
+                if openai_results and openai_results[0][2] is not None:
+                    enhanced_results.append((
+                        openai_results[0][0],  # 캐릭터 이름
+                        selected_themes[0]['name'], 
+                        "OpenAI (캐릭터 부적)",
+                        openai_results[0][1], 
+                        openai_results[0][2]
+                    ))
                 
-                # Gemini로 부적 생성 (캐릭터 부적 - multimodal 입력 사용)
-                if gemini_client:
-                    gemini_logs = []
-                    try:
-                        gemini_logs.append("1. Gemini 부적 생성 시작")
-                        
-                        # 캐릭터 이미지 로드
-                        char_name, char_path = selected_chars[1]
-                        char_image = Image.open(char_path).convert("RGBA")
-                        gemini_logs.append(f"2. 캐릭터 이미지 로드 완료: {char_name}")
-                        
-                        # 1단계: gemini-3-pro-preview로 캐릭터 초상세 분석
-                        gemini_logs.append("3. 캐릭터 분석 시작 (gemini-3-pro-preview)")
-                        analysis_prompt = """Analyze this character image in EXTREME DETAIL for image generation. Provide:
-
-1. EXACT Physical Appearance:
-   - Face: Eye shape, size, color, expression, eyebrow style, nose shape, mouth shape, skin tone
-   - Hair: Exact style, length, color, texture, accessories
-   - Body: Build, height proportions, pose, gesture
-   - Every visible detail
-
-2. EXACT Clothing & Accessories:
-   - Every piece of clothing with colors, patterns, textures
-   - All accessories, jewelry, props with exact descriptions
-   - Material appearance (fabric, metal, etc.)
-
-3. Art Style & Rendering:
-   - Specific style name (3D, anime, cartoon, etc.)
-   - Line work, shading technique, rendering quality
-   - Texture and material details
-
-4. Color Palette:
-   - Dominant colors with specific shades
-   - Lighting direction and color temperature
-   - Shadow and highlight colors
-
-5. Unique Identifying Features:
-   - Any distinctive marks, expressions, or characteristics
-   - Character personality conveyed through design
-
-Provide COMPREHENSIVE details in each category. Be as specific as possible - imagine you need to recreate this character exactly from text alone."""
-                        
-                        # Gemini 3 권장사항: 이미지 분석 시 media_resolution_high 사용
-                        from google.genai import types
-                        from io import BytesIO
-                        
-                        # PIL Image를 PNG 바이트로 변환
-                        img_buffer = BytesIO()
-                        char_image.save(img_buffer, format='PNG')
-                        img_bytes = img_buffer.getvalue()
-                        
-                        # Gemini 3는 이미지 유형에 따라 자동으로 최적 해상도 선택
-                        # media_resolution은 현재 라이브러리 버전에서 지원되지 않으므로 제거
-                        analysis_response = gemini_client.models.generate_content(
-                            model=TEXT_MODEL,  # gemini-3-pro-preview
-                            contents=[
-                                types.Content(
-                                    parts=[
-                                        types.Part(text=analysis_prompt),
-                                        types.Part(
-                                            inline_data=types.Blob(
-                                                mime_type="image/png",
-                                                data=img_bytes
-                                            )
-                                        )
-                                    ]
-                                )
-                            ],
-                            config=types.GenerateContentConfig(
-                                temperature=1.0  # Gemini 3 권장 기본값
-                            )
-                        )
-                        
-                        analysis_text = analysis_response.text if analysis_response.text else "Analysis failed"
-                        gemini_logs.append(f"4. 캐릭터 분석 완료 ({len(analysis_text)}자)")
-                        
-                        # 2단계: 부적 생성 프롬프트 작성
-                        gemini_bujeok_prompt = locked_bujeok_prompt.format(
-                            theme_name=selected_themes[1]['name'],
-                            theme_keywords=selected_themes[1]['keywords']
-                        )
-                        
-                        # 3단계: 완전한 text-to-image 프롬프트 생성 (캐릭터 재현 + 부적 변환)
-                        full_prompt = f"""Create a vertical Korean fortune talisman (부적) artwork featuring this character.
-
-CHARACTER DETAILS (You MUST recreate this character):
-{analysis_text}
-
-TALISMAN STYLE & THEME:
-{gemini_bujeok_prompt}
-
-COMPOSITION INSTRUCTIONS:
-1. CENTER THE CHARACTER: Place the character in the center, recreating their appearance, pose, and clothing exactly as described.
-2. TRANSFORM STYLE: Render the character with a 3D sculpted look, integrated into the talisman style.
-3. TALISMAN ELEMENTS: Surround the character with traditional Korean talisman borders, red calligraphy-style symbols (abstract), and golden patterns.
-4. THEME OBJECTS: Incorporate symbolic objects for {selected_themes[1]['name']} ({selected_themes[1]['keywords']}) around the character.
-5. BACKGROUND: Aged yellow parchment texture with authentic Korean paper details.
-6. ATMOSPHERE: Mystical, spiritual, dignified, and auspicious.
-
-Negative Prompt: text, letters, watermarks, distorted face, bad anatomy, multiple characters, modern background."""
-                        
-                        gemini_logs.append("5. 이미지 생성 요청 시작")
-                        
-                        # 4단계: Text-to-image 생성
-                        # Gemini 3 권장사항: temperature=1.0 유지
-                        response = gemini_client.models.generate_content(
-                            model=IMAGE_MODEL,
-                            contents=full_prompt + "\n\nImportant: Generate in 9:16 vertical aspect ratio.",
-                            config=types.GenerateContentConfig(
-                                temperature=1.0
-                            )
-                        )
-                        
-                        gemini_img = None
-                        if response and hasattr(response, 'candidates'):
-                            # 후보가 있는지 확인
-                            if not response.candidates:
-                                gemini_logs.append(f"❌ 실패: 후보 없음. 응답: {str(response)}")
-                            
-                            for part in response.candidates[0].content.parts:
-                                if hasattr(part, 'inline_data') and part.inline_data:
-                                    img_bytes = part.inline_data.data
-                                    gemini_img = Image.open(BytesIO(img_bytes)).convert("RGBA")
-                                    gemini_logs.append("✅ 이미지 생성 성공")
-                                    break
-                        else:
-                            gemini_logs.append(f"❌ 실패: 응답 없음. 응답: {str(response)}")
-                        
-                        if gemini_img:
-                            enhanced_results.append((
-                                char_name,  # 캐릭터 이름
-                                selected_themes[1]['name'],
-                                "Gemini (캐릭터 부적)",
-                                f"캐릭터 분석 기반 생성\n테마: {selected_themes[1]['name']} ({selected_themes[1]['keywords']})",
-                                gemini_img
-                            ))
-                        else:
-                            print("\n".join(gemini_logs))
-                            
-                    except Exception as gemini_error:
-                        gemini_logs.append(f"❌ 예외 발생: {str(gemini_error)}")
-                        import traceback
-                        gemini_logs.append(traceback.format_exc())
-                        print("\n".join(gemini_logs))
-                        
                 if enhanced_results:
                     return {
                         "success": True, 
@@ -1791,18 +1641,11 @@ Negative Prompt: text, letters, watermarks, distorted face, bad anatomy, multipl
                         "valid_chars": selected_chars,
                         "char_count": len(valid_chars),
                         "error": None,
-                        "logs": gemini_logs if 'gemini_logs' in locals() else []
+                        "logs": []
                     }
                 
-                # 실패 시 로그를 error 메시지에 포함
-                error_msg = "이미지 생성 실패"
-                logs_to_return = []
-                if gemini_client and 'gemini_logs' in locals() and gemini_logs:
-                    error_msg += "\nGemini 로그:\n" + "\n".join(gemini_logs)
-                    logs_to_return = gemini_logs
-                    
-                return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": error_msg, "logs": logs_to_return}
-            return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": "캐릭터 이미지 또는 API 클라이언트 없음", "logs": []}
+                return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": "OpenAI 이미지 생성 실패", "logs": []}
+            return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": "캐릭터 이미지 또는 OpenAI 클라이언트 없음", "logs": []}
         except Exception as e:
             import traceback
             return {"success": False, "results": [], "valid_chars": [], "char_count": 0, "error": f"{str(e)}\n{traceback.format_exc()}", "logs": []}
@@ -1831,14 +1674,7 @@ Negative Prompt: text, letters, watermarks, distorted face, bad anatomy, multipl
         try:
             bujeok_result = generate_bujeok_images_wrapper()
             
-            # Gemini 로그가 있으면 출력 (성공 여부와 무관하게)
-            if bujeok_result.get("logs"):
-                with st.expander("Gemini 부적 생성 로그 (디버깅용)", expanded=True):
-                    for log in bujeok_result["logs"]:
-                        if "❌" in log or "실패" in log or "예외" in log:
-                            st.error(log)
-                        else:
-                            st.text(log)
+            # Gemini 로그 출력 부분 제거 (OpenAI 단독 사용으로 변경됨)
             
             if bujeok_result["success"]:
                 st.write(f"📂 발견된 캐릭터 이미지: {bujeok_result['char_count']}개")
@@ -1878,9 +1714,8 @@ Negative Prompt: text, letters, watermarks, distorted face, bad anatomy, multipl
     if bujeok_results_raw:
         st.markdown("#### 🧧 행운의 부적")
         
-        # 2개의 부적 표시 (OpenAI, Gemini)
-        cols = st.columns(2)
-        for idx, (char_name, theme_name, model_name, prompt, img) in enumerate(bujeok_results_raw):
+        # 1개의 부적 표시 (OpenAI)
+        for char_name, theme_name, model_name, prompt, img in bujeok_results_raw:
             if img:
                 # base64로 인코딩
                 bujeok_buffered = BytesIO()
@@ -1889,12 +1724,11 @@ Negative Prompt: text, letters, watermarks, distorted face, bad anatomy, multipl
                 bujeok_results.append((char_name, theme_name, model_name, img_b64))
                 
                 # 화면에 표시
-                with cols[idx]:
-                    st.markdown(f"**{theme_name} 부적**")
-                    st.markdown(f"*{char_name} · {model_name}*")
-                    st.image(img, use_container_width=True)
-                    with st.expander("생성된 프롬프트"):
-                        st.text(prompt if prompt else "프롬프트 생성 실패")
+                st.markdown(f"**{theme_name} 부적**")
+                st.markdown(f"*{char_name} · {model_name}*")
+                st.image(img, use_container_width=True)
+                with st.expander("생성된 프롬프트"):
+                    st.text(prompt if prompt else "프롬프트 생성 실패")
         
         if not bujeok_results:
             st.warning("부적 이미지 생성에 실패했습니다.")
