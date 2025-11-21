@@ -97,7 +97,11 @@ def get_gemini_client():
     if not GEMINI_API_KEY:
         return None
     try:
-        return genai.Client(api_key=GEMINI_API_KEY)
+        # v1alpha API 버전 사용 (media_resolution 파라미터 지원)
+        return genai.Client(
+            api_key=GEMINI_API_KEY,
+            http_options={'api_version': 'v1alpha'}
+        )
     except Exception:
         return None
 
@@ -300,16 +304,16 @@ def generate_images(
 
     for _ in range(num_images):
         try:
-            # types.ImageConfig 오류 해결을 위해 딕셔너리 형태로 설정 전달
+            from google.genai import types
+            # Gemini 3 권장사항: temperature=1.0 유지
+            final_prompt = f"Create a picture of: {prompt} (Aspect Ratio: 9:16)"
+            
             response = gemini_client.models.generate_content(
                 model=IMAGE_MODEL,
-                contents=f"Create a picture of: {prompt}",
-                config={
-                    'image_config': {
-                        'aspect_ratio': "9:16"
-                        # 'image_size': "4K" # 에러 가능성 있어 제외
-                    }
-                }
+                contents=final_prompt,
+                config=types.GenerateContentConfig(
+                    temperature=1.0
+                )
             )
 
             # google-genai 응답에서 이미지 추출
@@ -1677,9 +1681,34 @@ if generate:
 
 Provide COMPREHENSIVE details in each category. Be as specific as possible - imagine you need to recreate this character exactly from text alone."""
                         
+                        # Gemini 3 권장사항: 이미지 분석 시 media_resolution_high 사용
+                        from google.genai import types
+                        from io import BytesIO
+                        
+                        # PIL Image를 PNG 바이트로 변환
+                        img_buffer = BytesIO()
+                        char_image.save(img_buffer, format='PNG')
+                        img_bytes = img_buffer.getvalue()
+                        
                         analysis_response = gemini_client.models.generate_content(
                             model=TEXT_MODEL,  # gemini-3-pro-preview
-                            contents=[analysis_prompt, char_image]
+                            contents=[
+                                types.Content(
+                                    parts=[
+                                        types.Part(text=analysis_prompt),
+                                        types.Part(
+                                            inline_data=types.Blob(
+                                                mime_type="image/png",
+                                                data=img_bytes
+                                            ),
+                                            media_resolution={"level": "media_resolution_high"}
+                                        )
+                                    ]
+                                )
+                            ],
+                            config=types.GenerateContentConfig(
+                                temperature=1.0  # Gemini 3 권장 기본값
+                            )
                         )
                         
                         analysis_text = analysis_response.text if analysis_response.text else "Analysis failed"
@@ -1692,7 +1721,6 @@ Provide COMPREHENSIVE details in each category. Be as specific as possible - ima
                         )
                         
                         # 3단계: 완전한 text-to-image 프롬프트 생성 (캐릭터 재현 + 부적 변환)
-                        from google.genai import types
                         full_prompt = f"""Create a vertical Korean fortune talisman (부적) artwork featuring this character.
 
 CHARACTER DETAILS (You MUST recreate this character):
@@ -1714,16 +1742,13 @@ Negative Prompt: text, letters, watermarks, distorted face, bad anatomy, multipl
                         gemini_logs.append("5. 이미지 생성 요청 시작")
                         
                         # 4단계: Text-to-image 생성
-                        # 이미지 생성 모델은 "Create a picture of"와 같은 지시어가 필요할 수 있음
-                        # types.ImageConfig 오류 해결을 위해 딕셔너리 형태로 설정 전달
+                        # Gemini 3 권장사항: temperature=1.0 유지
                         response = gemini_client.models.generate_content(
                             model=IMAGE_MODEL,
-                            contents=full_prompt,
-                            config={
-                                'image_config': {
-                                    'aspect_ratio': "9:16"
-                                }
-                            }
+                            contents=full_prompt + "\n\nImportant: Generate in 9:16 vertical aspect ratio.",
+                            config=types.GenerateContentConfig(
+                                temperature=1.0
+                            )
                         )
                         
                         gemini_img = None
