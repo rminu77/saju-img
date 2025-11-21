@@ -12,7 +12,6 @@ from dotenv import load_dotenv
 import requests
 from typing import Optional
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 try:
     from openai import OpenAI
@@ -356,32 +355,22 @@ def generate_bujeok_image_single(prompt: str, image_path: str, openai_client: Op
 
 def generate_bujeok_images(base_prompt: str, char_images: list, openai_client: OpenAI):
     """
-    여러 캐릭터 이미지로 부적 이미지들을 병렬로 생성
+    여러 캐릭터 이미지로 부적 이미지들을 순차적으로 생성
     char_images: [(name, path), ...] 형식의 리스트
     반환: [(name, prompt, image), ...] 형식의 리스트
     """
     results = []
-    images = [None] * len(char_images)
     
-    # base_prompt를 직접 사용하여 모든 이미지를 동시에 생성
-    with ThreadPoolExecutor(max_workers=len(char_images)) as executor:
-        future_to_index = {}
-        for i, (char_name, img_path) in enumerate(char_images):
-            future = executor.submit(generate_bujeok_image_single, base_prompt, img_path, openai_client)
-            future_to_index[future] = i
-        
-        # 완료된 이미지들 수집
-        for future in as_completed(future_to_index):
-            index = future_to_index[future]
-            try:
-                images[index] = future.result()
-            except Exception as exc:
-                # 에러 메시지는 streamlit 밖에서 발생하므로 무시
-                images[index] = None
-    
-    # 결과 조합
-    for i, (char_name, _) in enumerate(char_images):
-        results.append((char_name, base_prompt, images[i]))
+    # 순차적으로 이미지 생성 (Streamlit 안정성 확보)
+    for char_name, img_path in char_images:
+        try:
+            img = generate_bujeok_image_single(base_prompt, img_path, openai_client)
+            results.append((char_name, base_prompt, img))
+        except Exception as exc:
+            # 에러 발생 시에도 계속 진행
+            import sys
+            print(f"⚠️ {char_name} 부적 생성 실패: {exc}", file=sys.stderr)
+            results.append((char_name, base_prompt, None))
     
     return results
 
@@ -1519,6 +1508,10 @@ if generate:
     locked_chat_summary_prompt = chat_summary_prompt
     locked_openai_client = openai_client
 
+    # 진행 상황 로그 컨테이너
+    progress_log = st.empty()
+    
+    progress_log.info("🔄 1/6 단계: 핵심 장면 추출 중...")
     with st.spinner("🔍 핵심 장면 추출 중 (gpt-4.1-mini 사용)..."):
         try:
             core_scene = summarize_for_visuals(
@@ -1539,8 +1532,11 @@ if generate:
     if core_scene:
         st.markdown("#### ✨ 핵심 장면 요약")
         st.write(core_scene)
+    
+    progress_log.success("✅ 1/6 단계 완료: 핵심 장면 추출")
 
     # 총운 3줄 요약 생성
+    progress_log.info("🔄 2/6 단계: 총운 3줄 요약 생성 중...")
     with st.spinner("📋 총운 요약 생성 중 (gpt-4.1-mini 사용)..."):
         try:
             chongun_text = sections.get("핵심포인트(새해신수)", "").strip() + "\n\n" + sections.get("올해의총운(새해신수)", "").strip()
@@ -1551,7 +1547,10 @@ if generate:
         except Exception as exc:
             st.warning(f"총운 요약 생성 중 오류: {exc}")
             chongun_summary = ""
+    
+    progress_log.success("✅ 2/6 단계 완료: 총운 3줄 요약")
 
+    progress_log.info("🔄 3/6 단계: 이미지 프롬프트 작성 중...")
     with st.spinner("📝 프롬프트 작성 중..."):
         try:
             prompt = write_prompt_from_saju(
@@ -1570,6 +1569,8 @@ if generate:
     if not prompt:
         st.error("프롬프트 생성에 실패했습니다. 입력 내용을 다시 확인해주세요.")
         st.stop()
+    
+    progress_log.success("✅ 3/6 단계 완료: 이미지 프롬프트 작성")
 
     final_prompt = prompt
     timestamp = int(time.time())
@@ -1653,40 +1654,55 @@ if generate:
     # 사주 이미지와 부적 이미지를 순차적으로 생성 (안정성 확보 및 디버깅 용이)
     # 병렬 처리 시 원인 불명의 중단 현상이 발생하여 순차 처리로 변경함
     
-    # 1. 사주 이미지 생성
+    # 4. 사주 이미지 생성
+    progress_log.info("🔄 4/6 단계: 사주 이미지 생성 중...")
     saju_img = None
+    saju_error = None
     with st.spinner("🎨 사주 이미지를 생성 중입니다..."):
         try:
             saju_result = generate_saju_image()
             if saju_result["success"]:
-                st.write("✅ 사주 이미지 생성 완료")
                 saju_img = saju_result["image"]
             else:
-                st.error(f"사주 이미지 생성 실패: {saju_result.get('error', '알 수 없는 오류')}")
+                saju_error = f"사주 이미지 생성 실패: {saju_result.get('error', '알 수 없는 오류')}"
         except Exception as e:
-            st.error(f"사주 이미지 생성 중 오류 발생: {e}")
+            import traceback
+            saju_error = f"사주 이미지 생성 중 오류 발생: {e}\n{traceback.format_exc()}"
+    
+    # 스피너 밖에서 결과 표시
+    if saju_img:
+        progress_log.success("✅ 4/6 단계 완료: 사주 이미지 생성")
+    elif saju_error:
+        st.error(saju_error)
+        st.stop()
             
-    # 2. 부적 이미지 생성
+    # 5. 부적 이미지 생성
+    progress_log.info("🔄 5/6 단계: 부적 이미지 생성 중...")
     bujeok_results_raw = []
     valid_chars = []
+    bujeok_status = None
+    bujeok_error = None
     
-    with st.spinner("🧧 행운의 부적을 생성 중입니다... (캐릭터 분석 및 부적화)"):
+    with st.spinner("🧧 행운의 부적을 생성 중입니다..."):
         try:
             bujeok_result = generate_bujeok_images_wrapper()
             
-            # Gemini 로그 출력 부분 제거 (OpenAI 단독 사용으로 변경됨)
-            
             if bujeok_result["success"]:
-                st.write(f"📂 발견된 캐릭터 이미지: {bujeok_result['char_count']}개")
-                st.write(f"✅ 부적 이미지 {len(bujeok_result['results'])}개 생성 완료")
                 bujeok_results_raw = bujeok_result["results"]
                 valid_chars = bujeok_result["valid_chars"]
+                bujeok_status = f"✅ 부적 이미지 {len(bujeok_result['results'])}개 생성 완료 (캐릭터: {bujeok_result['char_count']}개)"
             else:
-                st.warning(f"부적 이미지 생성 실패: {bujeok_result.get('error', '알 수 없는 오류')}")
+                bujeok_error = f"부적 이미지 생성 실패: {bujeok_result.get('error', '알 수 없는 오류')}"
         except Exception as e:
-            st.error(f"부적 이미지 생성 중 오류 발생: {e}")
             import traceback
-            st.text(traceback.format_exc())
+            bujeok_error = f"부적 이미지 생성 중 오류 발생: {e}\n{traceback.format_exc()}"
+    
+    # 스피너 밖에서 결과 표시
+    if bujeok_status:
+        progress_log.success("✅ 5/6 단계 완료: 부적 이미지 생성")
+    elif bujeok_error:
+        st.warning(bujeok_error)
+        progress_log.warning("⚠️ 5/6 단계: 부적 이미지 생성 실패 (계속 진행)")
 
     # 사주 이미지 처리
     if not saju_img:
@@ -1737,35 +1753,15 @@ if generate:
     else:
         st.warning("부적 이미지 생성 중 오류가 발생했습니다.")
 
-    # HTML 생성 - 섹션 키 매핑 (입력창 키 -> HTML 표시용 키)
+    # 6. HTML 생성
+    progress_log.info("🔄 6/6 단계: HTML 생성 중...")
     with st.spinner("📄 HTML 생성 중..."):
-        # 디버깅: sections 딕셔너리의 모든 키 확인
-        st.write("### 📋 입력된 sections 딕셔너리 키 확인")
-        월별운_in_sections = [k for k in sections.keys() if '월별' in k]
-        if 월별운_in_sections:
-            st.write(f"✅ sections에 월별운 키 있음: {월별운_in_sections}")
-            for k in 월별운_in_sections:
-                st.write(f"  - 키: '{k}', 내용 길이: {len(sections[k])}자, 비어있음: {not sections[k].strip()}")
-        else:
-            st.warning(f"⚠️ sections에 월별운 키가 없습니다. 전체 키: {list(sections.keys())}")
-        
         # 섹션 키를 HTML 생성 함수가 기대하는 형식으로 변환
         mapped_sections = {}
         for key, content in sections.items():
             # "(새해신수)", "(토정비결)" 등을 제거하여 간단한 키로 변환
             clean_key = key.replace("(새해신수)", "").replace("(토정비결)", "").replace(")", "")
             mapped_sections[clean_key] = content
-        
-        # 디버깅: 월별운 키와 내용 확인
-        st.write("### 📋 변환된 mapped_sections 키 확인")
-        월별운_keys = [k for k in mapped_sections.keys() if '월별' in k or '월별운' in k]
-        if 월별운_keys:
-            st.write(f"✅ 월별운 관련 키 발견: {월별운_keys}")
-            for key in 월별운_keys:
-                st.write(f"  - '{key}': {len(mapped_sections[key])}자, 키 표현: {repr(key)}")
-        else:
-            st.warning("⚠️ mapped_sections에 월별운 관련 키가 없습니다")
-            st.write(f"사용 가능한 모든 키: {list(mapped_sections.keys())}")
 
         html_content = generate_html(
             user_name=user_name,
@@ -1791,14 +1787,14 @@ if generate:
 
     # 세션 상태에 결과 저장
     st.session_state.generated_html = html_content
-    st.session_state.generated_image = img
+    st.session_state.generated_image = saju_img
     st.session_state.html_filename = html_filename
 
     # 종료 시간 계산
     end_time = time.time()
     elapsed_time = end_time - start_time
 
-    st.success(f"✅ HTML 생성 완료! (소요 시간: {elapsed_time:.1f}초)")
+    progress_log.success(f"✅ 6/6 단계 완료! 전체 소요 시간: {elapsed_time:.1f}초")
 
 # 채팅방 요약 버튼 클릭 시
 if generate_summary:
