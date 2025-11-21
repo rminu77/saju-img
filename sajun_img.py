@@ -38,7 +38,7 @@ st.set_page_config(page_title="사주 → HTML 생성기", page_icon="🧧", lay
 # ----------------------------
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-TEXT_MODEL = "gemini-2.5-pro"                 # 프롬프트 작성 모델
+TEXT_MODEL = "gemini-3-pro-preview"                 # 프롬프트 작성 모델
 IMAGE_MODEL = "gemini-3-pro-image-preview"  # 이미지 생성 모델
 OPENAI_TEXT_MODEL = "gpt-4.1-mini"  # 장면 요약 모델
 OPENAI_IMAGE_MODEL = "gpt-image-1"
@@ -300,9 +300,16 @@ def generate_images(
 
     for _ in range(num_images):
         try:
+            from google.genai import types
             response = gemini_client.models.generate_content(
                 model=IMAGE_MODEL,
-                contents=f"Create a picture of: {prompt}"
+                contents=f"Create a picture of: {prompt}",
+                config=types.GenerateContentConfig(
+                    image_config=types.ImageConfig(
+                        aspect_ratio="9:16",
+                        image_size="4K"
+                    )
+                )
             )
 
             # google-genai 응답에서 이미지 추출
@@ -1628,34 +1635,53 @@ if generate:
                             openai_results[0][2]
                         ))
                 
-                # Gemini로 부적 생성 (일반 부적 - 캐릭터 없음)
+                # Gemini로 부적 생성 (캐릭터 부적 - multimodal 입력 사용)
                 if gemini_client:
-                    # Gemini용 프롬프트 (캐릭터 언급 제거, 순수 부적 스타일)
-                    gemini_bujeok_prompt = (
-                        f"Create a vertical traditional Korean bujeok talisman artwork in a 9:16 aspect ratio for {selected_themes[1]['name']}. "
-                        f"The artwork must strongly incorporate visual symbols, objects, patterns, and traditional motifs directly representing {selected_themes[1]['name']} and {selected_themes[1]['keywords']}. "
-                        f"Use auspicious iconography and lucky cultural elements that are specifically associated with {selected_themes[1]['keywords']}, such as emblematic shapes, spiritual objects, charms, or symbolic animals. "
-                        f"Surround with detailed brushstroke patterns and ritual symbols that amplify the meaning of {selected_themes[1]['keywords']}, visually expressing themes like protection, prosperity, love, success, health, or spiritual blessing. "
-                        "Use a 3D sculpted style with soft cinematic lighting, rich depth, elegant shading, and luxurious material texture on aged yellow parchment with weathered ancient Korean paper texture. "
-                        "Isolated on a clean white background. "
-                        "No real text, letters, numbers, watermarks, or human characters."
-                    )
-                    # Gemini는 generate_images 함수 사용 (텍스트-이미지 생성)
-                    gemini_imgs = generate_images(
-                        f"Create a picture of: {gemini_bujeok_prompt}",
-                        num_images=1,
-                        provider="gemini",
-                        gemini_client=gemini_client,
-                        openai_client=None
-                    )
-                    if gemini_imgs and gemini_imgs[0] is not None:
-                        enhanced_results.append((
-                            "일반 부적",  # 캐릭터 이름 대신
-                            selected_themes[1]['name'],
-                            "Gemini (일반 부적)",
-                            gemini_bujeok_prompt,
-                            gemini_imgs[0]
-                        ))
+                    try:
+                        # 캐릭터 이미지 로드
+                        char_name, char_path = selected_chars[1]
+                        char_image = Image.open(char_path).convert("RGBA")
+                        
+                        # Gemini용 프롬프트 (캐릭터 이미지를 변형하도록 지시)
+                        gemini_bujeok_prompt = locked_bujeok_prompt.format(
+                            theme_name=selected_themes[1]['name'],
+                            theme_keywords=selected_themes[1]['keywords']
+                        )
+                        
+                        # Gemini multimodal 호출 (이미지 + 텍스트)
+                        from google.genai import types
+                        response = gemini_client.models.generate_content(
+                            model=IMAGE_MODEL,
+                            contents=[
+                                char_image,  # 캐릭터 이미지
+                                f"Transform the character in this image into a beautiful Korean fortune talisman (부적). {gemini_bujeok_prompt}"
+                            ],
+                            config=types.GenerateContentConfig(
+                                image_config=types.ImageConfig(
+                                    aspect_ratio="9:16",
+                                    image_size="4K"
+                                )
+                            )
+                        )
+                        
+                        gemini_img = None
+                        if response and hasattr(response, 'candidates'):
+                            for part in response.candidates[0].content.parts:
+                                if hasattr(part, 'inline_data') and part.inline_data:
+                                    img_bytes = part.inline_data.data
+                                    gemini_img = Image.open(BytesIO(img_bytes)).convert("RGBA")
+                                    break
+                        
+                        if gemini_img:
+                            enhanced_results.append((
+                                char_name,  # 캐릭터 이름
+                                selected_themes[1]['name'],
+                                "Gemini (캐릭터 부적)",
+                                gemini_bujeok_prompt,
+                                gemini_img
+                            ))
+                    except Exception as gemini_error:
+                        print(f"Gemini 부적 생성 오류: {gemini_error}")
                 
                 if enhanced_results:
                     return {
