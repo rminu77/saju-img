@@ -1637,12 +1637,17 @@ if generate:
                 
                 # Gemini로 부적 생성 (캐릭터 부적 - multimodal 입력 사용)
                 if gemini_client:
+                    gemini_logs = []
                     try:
+                        gemini_logs.append("1. Gemini 부적 생성 시작")
+                        
                         # 캐릭터 이미지 로드
                         char_name, char_path = selected_chars[1]
                         char_image = Image.open(char_path).convert("RGBA")
+                        gemini_logs.append(f"2. 캐릭터 이미지 로드 완료: {char_name}")
                         
                         # 1단계: gemini-3-pro-preview로 캐릭터 초상세 분석
+                        gemini_logs.append("3. 캐릭터 분석 시작 (gemini-3-pro-preview)")
                         analysis_prompt = """Analyze this character image in EXTREME DETAIL for image generation. Provide:
 
 1. EXACT Physical Appearance:
@@ -1678,6 +1683,7 @@ Provide COMPREHENSIVE details in each category. Be as specific as possible - ima
                         )
                         
                         analysis_text = analysis_response.text if analysis_response.text else "Analysis failed"
+                        gemini_logs.append(f"4. 캐릭터 분석 완료 ({len(analysis_text)}자)")
                         
                         # 2단계: 부적 생성 프롬프트 작성
                         gemini_bujeok_prompt = locked_bujeok_prompt.format(
@@ -1705,6 +1711,8 @@ COMPOSITION INSTRUCTIONS:
 
 Negative Prompt: text, letters, watermarks, distorted face, bad anatomy, multiple characters, modern background."""
                         
+                        gemini_logs.append("5. 이미지 생성 요청 시작")
+                        
                         # 4단계: Text-to-image 생성
                         # 이미지 생성 모델은 "Create a picture of"와 같은 지시어가 필요할 수 있음
                         response = gemini_client.models.generate_content(
@@ -1722,15 +1730,16 @@ Negative Prompt: text, letters, watermarks, distorted face, bad anatomy, multipl
                         if response and hasattr(response, 'candidates'):
                             # 후보가 있는지 확인
                             if not response.candidates:
-                                print(f"Gemini 이미지 생성 실패: 후보 없음. 응답: {response}")
+                                gemini_logs.append(f"❌ 실패: 후보 없음. 응답: {str(response)}")
                             
                             for part in response.candidates[0].content.parts:
                                 if hasattr(part, 'inline_data') and part.inline_data:
                                     img_bytes = part.inline_data.data
                                     gemini_img = Image.open(BytesIO(img_bytes)).convert("RGBA")
+                                    gemini_logs.append("✅ 이미지 생성 성공")
                                     break
                         else:
-                            print(f"Gemini 이미지 생성 실패: 응답 없음. 응답: {response}")
+                            gemini_logs.append(f"❌ 실패: 응답 없음. 응답: {str(response)}")
                         
                         if gemini_img:
                             enhanced_results.append((
@@ -1740,12 +1749,15 @@ Negative Prompt: text, letters, watermarks, distorted face, bad anatomy, multipl
                                 f"캐릭터 분석 기반 생성\n테마: {selected_themes[1]['name']} ({selected_themes[1]['keywords']})",
                                 gemini_img
                             ))
+                        else:
+                            print("\n".join(gemini_logs))
+                            
                     except Exception as gemini_error:
-                        print(f"Gemini 부적 생성 오류: {gemini_error}")
-                        # 에러를 UI에도 표시 (디버깅용)
+                        gemini_logs.append(f"❌ 예외 발생: {str(gemini_error)}")
                         import traceback
-                        st.warning(f"Gemini 부적 생성 실패: {str(gemini_error)}")
-                
+                        gemini_logs.append(traceback.format_exc())
+                        print("\n".join(gemini_logs))
+                        
                 if enhanced_results:
                     return {
                         "success": True, 
@@ -1754,7 +1766,13 @@ Negative Prompt: text, letters, watermarks, distorted face, bad anatomy, multipl
                         "char_count": len(valid_chars),
                         "error": None
                     }
-                return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": "이미지 생성 실패"}
+                
+                # 실패 시 로그를 error 메시지에 포함
+                error_msg = "이미지 생성 실패"
+                if gemini_client and 'gemini_logs' in locals() and gemini_logs:
+                    error_msg += "\nGemini 로그:\n" + "\n".join(gemini_logs)
+                    
+                return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": error_msg}
             return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": "캐릭터 이미지 또는 API 클라이언트 없음"}
         except Exception as e:
             import traceback
