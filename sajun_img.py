@@ -171,12 +171,12 @@ def summarize_scene_to_korean_three_lines(
     openai_client: Optional[OpenAI] = None,
 ) -> str:
     """
-    영문 장면 요약과 총운 내용을 함께 활용하여 한글로 3줄 정리
+    영문 장면 요약과 총운 내용을 함께 활용하여 한글로 5줄 정리
     """
     system_instruction = """당신은 이미지 장면 설명과 운세 내용을 결합하여 한글로 간결하게 요약하는 전문가입니다.
 
 요약 규칙:
-- 정확히 3줄로 요약
+- 정확히 5줄로 요약
 - 장면의 시각적 요소와 운세의 핵심 메시지를 자연스럽게 융합
 - 각 줄은 의미있는 핵심 포인트 하나씩
 - 한글로 자연스럽게 표현
@@ -203,7 +203,7 @@ def summarize_scene_to_korean_three_lines(
 {scene_text}
 
 [요구사항]
-- 한글로 3줄 요약
+- 한글로 5줄 요약
 - 각 줄은 한 문장
 - 시각적 핵심 요소만 전달
 - 자연스러운 한국어 표현"""
