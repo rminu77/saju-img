@@ -1929,16 +1929,79 @@ if generate:
         st.error("사주 이미지 생성에 실패했습니다.")
         st.stop()
 
-    try:
-        print("[UI] 사주 이미지 화면 표시", file=sys.stderr)
-        st.markdown("#### 🎨 생성된 사주 이미지")
-        st.image(saju_img, caption="새해운세 이미지", use_container_width=True)
-        print("[UI] 사주 이미지 표시 완료", file=sys.stderr)
-    except Exception as e:
-        print(f"[UI] 사주 이미지 표시 실패: {e}", file=sys.stderr)
-        st.error(f"이미지 표시 중 오류: {e}")
+    # 부적 이미지 처리 (먼저 데이터 준비)
+    print("[UI] 부적 이미지 처리 시작", file=sys.stderr)
+    bujeok_results = []
+    bujeok_img_to_display = None
+    bujeok_theme_name = None
+    bujeok_char_name = None
+    bujeok_model_name = None
+    bujeok_prompt = None
+    
+    if bujeok_results_raw:
+        try:
+            print(f"[UI] 부적 {len(bujeok_results_raw)}개 처리 시작", file=sys.stderr)
+            
+            # 1개의 부적 표시 (OpenAI)
+            for idx, (char_name, theme_name, model_name, prompt, img) in enumerate(bujeok_results_raw, 1):
+                print(f"[UI] 부적 {idx} 처리: {char_name} - {theme_name}", file=sys.stderr)
+                if img:
+                    # base64로 인코딩
+                    print(f"[UI] 부적 {idx} base64 인코딩", file=sys.stderr)
+                    bujeok_buffered = BytesIO()
+                    img.save(bujeok_buffered, format="PNG")
+                    img_b64 = base64.b64encode(bujeok_buffered.getvalue()).decode()
+                    bujeok_results.append((char_name, theme_name, model_name, img_b64))
+                    print(f"[UI] 부적 {idx} 인코딩 완료: {len(img_b64)} 문자", file=sys.stderr)
+                    
+                    # 첫 번째 부적만 화면에 표시할 준비
+                    if bujeok_img_to_display is None:
+                        bujeok_img_to_display = img
+                        bujeok_theme_name = theme_name
+                        bujeok_char_name = char_name
+                        bujeok_model_name = model_name
+                        bujeok_prompt = prompt
+                        print(f"[UI] 부적 {idx} 표시 준비 완료", file=sys.stderr)
+        except Exception as e:
+            import traceback
+            error_msg = f"부적 이미지 처리 중 오류: {e}\n{traceback.format_exc()}"
+            print(f"[UI] 부적 처리 예외: {error_msg}", file=sys.stderr)
+            st.error(error_msg)
 
-    # 이미지를 base64로 인코딩
+    # 사주 이미지와 부적을 한 행에 반반씩 표시
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        try:
+            print("[UI] 사주 이미지 화면 표시", file=sys.stderr)
+            st.markdown("#### 🎨 생성된 사주 이미지")
+            st.image(saju_img, caption="새해운세 이미지", use_container_width=True)
+            print("[UI] 사주 이미지 표시 완료", file=sys.stderr)
+        except Exception as e:
+            print(f"[UI] 사주 이미지 표시 실패: {e}", file=sys.stderr)
+            st.error(f"이미지 표시 중 오류: {e}")
+    
+    with col2:
+        if bujeok_img_to_display:
+            print("[UI] 부적 이미지 화면 표시 시작", file=sys.stderr)
+            st.markdown("#### 🧧 행운의 부적")
+            st.markdown(f"**{bujeok_theme_name} 부적**")
+            st.markdown(f"*{bujeok_char_name} · {bujeok_model_name}*")
+            st.image(bujeok_img_to_display, use_container_width=True)
+            with st.expander("생성된 프롬프트"):
+                st.text(bujeok_prompt if bujeok_prompt else "프롬프트 생성 실패")
+            print("[UI] 부적 이미지 화면 표시 완료", file=sys.stderr)
+        elif bujeok_results_raw and not bujeok_results:
+            st.warning("부적 이미지 생성에 실패했습니다.")
+            print("[UI] 부적 결과가 비어있음", file=sys.stderr)
+        elif not valid_chars:
+            st.info("img 폴더에 캐릭터 이미지(nana.png, Bbanya.png, Angmond.png)가 없습니다. 부적 생성을 건너뜁니다.")
+            print("[UI] 캐릭터 이미지 없음", file=sys.stderr)
+        else:
+            st.warning("부적 이미지 생성 중 오류가 발생했습니다.")
+            print("[UI] 부적 생성 오류", file=sys.stderr)
+    
+    # 이미지를 base64로 인코딩 (HTML 생성용)
     print("[UI] 사주 이미지 base64 인코딩 시작", file=sys.stderr)
     buffered = BytesIO()
     saju_img.save(buffered, format="PNG")
@@ -1953,53 +2016,6 @@ if generate:
         print("[UI] 사주 이미지 파일 저장 완료", file=sys.stderr)
     except Exception as e:
         print(f"[UI] 사주 이미지 파일 저장 실패 (무시): {e}", file=sys.stderr)
-
-    # 부적 이미지 처리
-    print("[UI] 부적 이미지 처리 시작", file=sys.stderr)
-    bujeok_results = []
-    
-    if bujeok_results_raw:
-        try:
-            print(f"[UI] 부적 {len(bujeok_results_raw)}개 처리 시작", file=sys.stderr)
-            st.markdown("#### 🧧 행운의 부적")
-            
-            # 1개의 부적 표시 (OpenAI)
-            for idx, (char_name, theme_name, model_name, prompt, img) in enumerate(bujeok_results_raw, 1):
-                print(f"[UI] 부적 {idx} 처리: {char_name} - {theme_name}", file=sys.stderr)
-                if img:
-                    # base64로 인코딩
-                    print(f"[UI] 부적 {idx} base64 인코딩", file=sys.stderr)
-                    bujeok_buffered = BytesIO()
-                    img.save(bujeok_buffered, format="PNG")
-                    img_b64 = base64.b64encode(bujeok_buffered.getvalue()).decode()
-                    bujeok_results.append((char_name, theme_name, model_name, img_b64))
-                    print(f"[UI] 부적 {idx} 인코딩 완료: {len(img_b64)} 문자", file=sys.stderr)
-                    
-                    # 화면에 표시
-                    print(f"[UI] 부적 {idx} 화면 표시 시작", file=sys.stderr)
-                    st.markdown(f"**{theme_name} 부적**")
-                    st.markdown(f"*{char_name} · {model_name}*")
-                    st.image(img, use_container_width=True)
-                    with st.expander("생성된 프롬프트"):
-                        st.text(prompt if prompt else "프롬프트 생성 실패")
-                    print(f"[UI] 부적 {idx} 화면 표시 완료", file=sys.stderr)
-            
-            if not bujeok_results:
-                st.warning("부적 이미지 생성에 실패했습니다.")
-                print("[UI] 부적 결과가 비어있음", file=sys.stderr)
-            else:
-                print(f"[UI] 부적 처리 완료: {len(bujeok_results)}개", file=sys.stderr)
-        except Exception as e:
-            import traceback
-            error_msg = f"부적 이미지 처리 중 오류: {e}\n{traceback.format_exc()}"
-            print(f"[UI] 부적 처리 예외: {error_msg}", file=sys.stderr)
-            st.error(error_msg)
-    elif not valid_chars:
-        st.info("img 폴더에 캐릭터 이미지(nana.png, Bbanya.png, Angmond.png)가 없습니다. 부적 생성을 건너뜁니다.")
-        print("[UI] 캐릭터 이미지 없음", file=sys.stderr)
-    else:
-        st.warning("부적 이미지 생성 중 오류가 발생했습니다.")
-        print("[UI] 부적 생성 오류", file=sys.stderr)
     
     print("[UI] 부적 이미지 처리 완료, 6단계로 진행", file=sys.stderr)
 
