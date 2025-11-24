@@ -99,6 +99,50 @@ DEFAULT_SCENE_SUMMARY_INSTRUCTION = """당신은 이미지 장면 설명과 운�
 - 이모지 사용 금지
 - 명확하고 구체적으로"""
 
+# 부적 이미지 생성 프롬프트 (6개 테마별)
+DEFAULT_BUJEOK_JEMUL = (
+    "A traditional Korean yellow rectangular talisman with a red border on a red background. "
+    "The bold red Korean text '영앤리치 인생한방' is at the top. "
+    "Below it, the character from the reference image is wearing sunglasses and throwing money into the air "
+    "with musical notes, money bags, and golden coins around them. "
+    "The line art is thick, bold, and red in a woodblock print style."
+)
+DEFAULT_BUJEOK_YEONAE = (
+    "A traditional Korean yellow rectangular talisman with a red border on a red background. "
+    "The bold red Korean text '솔로탈출 인기폭발' is at the top. "
+    "Below it, the character from the reference image is wearing sunglasses and making finger heart gestures "
+    "surrounded by floating hearts, cupids, and roses. "
+    "The line art is thick, bold, and red in a woodblock print style."
+)
+DEFAULT_BUJEOK_GUNGANG = (
+    "A traditional Korean yellow rectangular talisman with a red border on a red background. "
+    "The bold red Korean text '무병장수 천하무적' is at the top. "
+    "Below it, the character from the reference image is wearing sunglasses and flexing their muscles "
+    "showing strong energy, surrounded by energy shields and ginseng roots. "
+    "The line art is thick, bold, and red in a woodblock print style."
+)
+DEFAULT_BUJEOK_JIKJANG = (
+    "A traditional Korean yellow rectangular talisman with a red border on a red background. "
+    "The bold red Korean text '초속승진 연봉떡상' is at the top. "
+    "Below it, the character from the reference image is wearing sunglasses and sitting on a king's throne "
+    "wearing a crown, surrounded by upward graph arrows and trophies. "
+    "The line art is thick, bold, and red in a woodblock print style."
+)
+DEFAULT_BUJEOK_SOMANG = (
+    "A traditional Korean yellow rectangular talisman with a red border on a red background. "
+    "The bold red Korean text '소원성취 만사형통' is at the top. "
+    "Below it, the character from the reference image is wearing sunglasses and holding a magical wishing lamp "
+    "surrounded by sparkling stars and magic dust. "
+    "The line art is thick, bold, and red in a woodblock print style."
+)
+DEFAULT_BUJEOK_ISA = (
+    "A traditional Korean yellow rectangular talisman with a red border on a red background. "
+    "The bold red Korean text '명당입성 대박기운' is at the top. "
+    "Below it, the character from the reference image is wearing sunglasses and holding a golden key "
+    "opening a new door, surrounded by swallows and lucky clouds. "
+    "The line art is thick, bold, and red in a woodblock print style."
+)
+
 # ----------------------------
 # 유틸
 # ----------------------------
@@ -1545,13 +1589,58 @@ summary_prompt_input = st.text_area(
 )
 summary_prompt = summary_prompt_input if summary_prompt_input.strip() else DEFAULT_SUMMARY_INSTRUCTION
 
-bujeok_prompt_input = st.text_area(
-    "부적 이미지 시스템 프롬프트",
-    value=DEFAULT_BUJEOK_INSTRUCTION,
-    height=120,
-    help="부적 이미지 생성 시 사용할 시스템 프롬프트입니다. {theme_name}과 {theme_keywords}는 자동으로 치환됩니다.",
+st.markdown("---")
+st.markdown("### 🧧 부적 이미지 생성 프롬프트 (테마별)")
+
+bujeok_jemul_input = st.text_area(
+    "재물운 부적 프롬프트",
+    value=DEFAULT_BUJEOK_JEMUL,
+    height=100,
+    help="재물운 부적 이미지 생성 프롬프트입니다.",
 )
-bujeok_prompt = bujeok_prompt_input if bujeok_prompt_input.strip() else DEFAULT_BUJEOK_INSTRUCTION
+bujeok_jemul = bujeok_jemul_input if bujeok_jemul_input.strip() else DEFAULT_BUJEOK_JEMUL
+
+bujeok_yeonae_input = st.text_area(
+    "연애운 부적 프롬프트",
+    value=DEFAULT_BUJEOK_YEONAE,
+    height=100,
+    help="연애운 부적 이미지 생성 프롬프트입니다.",
+)
+bujeok_yeonae = bujeok_yeonae_input if bujeok_yeonae_input.strip() else DEFAULT_BUJEOK_YEONAE
+
+bujeok_gungang_input = st.text_area(
+    "건강운 부적 프롬프트",
+    value=DEFAULT_BUJEOK_GUNGANG,
+    height=100,
+    help="건강운 부적 이미지 생성 프롬프트입니다.",
+)
+bujeok_gungang = bujeok_gungang_input if bujeok_gungang_input.strip() else DEFAULT_BUJEOK_GUNGANG
+
+bujeok_jikjang_input = st.text_area(
+    "직장운 부적 프롬프트",
+    value=DEFAULT_BUJEOK_JIKJANG,
+    height=100,
+    help="직장운 부적 이미지 생성 프롬프트입니다.",
+)
+bujeok_jikjang = bujeok_jikjang_input if bujeok_jikjang_input.strip() else DEFAULT_BUJEOK_JIKJANG
+
+bujeok_somang_input = st.text_area(
+    "소망운 부적 프롬프트",
+    value=DEFAULT_BUJEOK_SOMANG,
+    height=100,
+    help="소망운 부적 이미지 생성 프롬프트입니다.",
+)
+bujeok_somang = bujeok_somang_input if bujeok_somang_input.strip() else DEFAULT_BUJEOK_SOMANG
+
+bujeok_isa_input = st.text_area(
+    "이사운 부적 프롬프트",
+    value=DEFAULT_BUJEOK_ISA,
+    height=100,
+    help="이사운 부적 이미지 생성 프롬프트입니다.",
+)
+bujeok_isa = bujeok_isa_input if bujeok_isa_input.strip() else DEFAULT_BUJEOK_ISA
+
+st.markdown("---")
 
 chat_summary_prompt_input = st.text_area(
     "채팅방 요약 시스템 프롬프트",
@@ -1568,6 +1657,7 @@ scene_summary_prompt_input = st.text_area(
     help="이미지 장면 설명과 총운 내용을 결합하여 한글 설명을 생성할 때 사용하는 시스템 프롬프트입니다.",
 )
 scene_summary_prompt = scene_summary_prompt_input if scene_summary_prompt_input.strip() else DEFAULT_SCENE_SUMMARY_INSTRUCTION
+
 
 st.markdown("---")
 
@@ -1591,7 +1681,14 @@ if generate:
     # 이미지 생성 시작 시점의 설정을 고정
     locked_system_prompt = system_prompt
     locked_summary_prompt = summary_prompt
-    locked_bujeok_prompt = bujeok_prompt
+    locked_bujeok_prompts = {
+        "재물운": bujeok_jemul,
+        "연애운": bujeok_yeonae,
+        "건강운": bujeok_gungang,
+        "직장운": bujeok_jikjang,
+        "소망운": bujeok_somang,
+        "이사운": bujeok_isa,
+    }
     locked_chat_summary_prompt = chat_summary_prompt
     locked_scene_summary_prompt = scene_summary_prompt
     locked_openai_client = openai_client
@@ -1702,69 +1799,10 @@ if generate:
                 selected_chars = random.sample(valid_chars, 1)
                 print(f"[부적Wrapper] 선택된 캐릭터: {selected_chars[0][0]}", file=sys.stderr)
                 
-                # 랜덤으로 테마 1개 선택 (각 테마별 상세 프롬프트)
-                # 요청하신 '선글라스 + 붉은 선화 + 힙한 스타일'을 모든 테마에 적용
+                # UI에서 설정한 프롬프트로 themes 배열 구성
                 themes = [
-                    {
-                        "name": "재물운",
-                        "prompt": (
-                            "A traditional Korean yellow rectangular talisman with a red border on a red background. "
-                            "The bold red Korean text '영앤리치 인생한방' is at the top. "
-                            "Below it, the character from the reference image is wearing sunglasses and throwing money into the air "
-                            "with musical notes, money bags, and golden coins around them. "
-                            "The line art is thick, bold, and red in a woodblock print style."
-                        )
-                    },
-                    {
-                        "name": "연애운",
-                        "prompt": (
-                            "A traditional Korean yellow rectangular talisman with a red border on a red background. "
-                            "The bold red Korean text '솔로탈출 인기폭발' is at the top. "
-                            "Below it, the character from the reference image is wearing sunglasses and making finger heart gestures "
-                            "surrounded by floating hearts, cupids, and roses. "
-                            "The line art is thick, bold, and red in a woodblock print style."
-                        )
-                    },
-                    {
-                        "name": "건강운",
-                        "prompt": (
-                            "A traditional Korean yellow rectangular talisman with a red border on a red background. "
-                            "The bold red Korean text '무병장수 천하무적' is at the top. "
-                            "Below it, the character from the reference image is wearing sunglasses and flexing their muscles "
-                            "showing strong energy, surrounded by energy shields and ginseng roots. "
-                            "The line art is thick, bold, and red in a woodblock print style."
-                        )
-                    },
-                    {
-                        "name": "직장운",
-                        "prompt": (
-                            "A traditional Korean yellow rectangular talisman with a red border on a red background. "
-                            "The bold red Korean text '초속승진 연봉떡상' is at the top. "
-                            "Below it, the character from the reference image is wearing sunglasses and sitting on a king's throne "
-                            "wearing a crown, surrounded by upward graph arrows and trophies. "
-                            "The line art is thick, bold, and red in a woodblock print style."
-                        )
-                    },
-                    {
-                        "name": "소망운",
-                        "prompt": (
-                            "A traditional Korean yellow rectangular talisman with a red border on a red background. "
-                            "The bold red Korean text '소원성취 만사형통' is at the top. "
-                            "Below it, the character from the reference image is wearing sunglasses and holding a magical wishing lamp "
-                            "surrounded by sparkling stars and magic dust. "
-                            "The line art is thick, bold, and red in a woodblock print style."
-                        )
-                    },
-                    {
-                        "name": "이사운",
-                        "prompt": (
-                            "A traditional Korean yellow rectangular talisman with a red border on a red background. "
-                            "The bold red Korean text '명당입성 대박기운' is at the top. "
-                            "Below it, the character from the reference image is wearing sunglasses and holding a golden key "
-                            "opening a new door, surrounded by swallows and lucky clouds. "
-                            "The line art is thick, bold, and red in a woodblock print style."
-                        )
-                    }
+                    {"name": theme_name, "prompt": prompt}
+                    for theme_name, prompt in locked_bujeok_prompts.items()
                 ]
                 selected_themes = random.sample(themes, 1)
                 print(f"[부적Wrapper] 선택된 테마: {selected_themes[0]['name']}", file=sys.stderr)
