@@ -1693,30 +1693,67 @@ if generate:
                 print(f"[부적Wrapper] 선택된 캐릭터: {selected_chars[0][0]}", file=sys.stderr)
                 
                 # 랜덤으로 테마 1개 선택 (각 테마별 상세 프롬프트)
+                # 요청하신 '선글라스 + 붉은 선화 + 힙한 스타일'을 모든 테마에 적용
                 themes = [
                     {
                         "name": "재물운",
-                        "prompt": "Create a vertical traditional Korean bujeok talisman artwork in a 9:16 aspect ratio. The artwork must strongly incorporate visual symbols, objects, patterns, and traditional motifs directly representing 재물운 and wealth, prosperity, fortune, gold coins, money. Use auspicious iconography and lucky cultural elements that are specifically associated with wealth, prosperity, fortune, gold coins, money, such as emblematic shapes (전통 보자기, 엽전, 금괴, 황금 항아리), spiritual objects (복주머니, 황금 열쇠, 재물 두꺼비), charms (복 문양, 부채, 황금 나뭇잎), or symbolic animals (황금 용, 복돼지, 금붕어), integrating them into the talisman composition. Surround the character with detailed brushstroke patterns (금빛 구름, 재물 소용돌이, 풍요의 파도) and ritual symbols that amplify the meaning of wealth, prosperity, fortune, gold coins, money, visually expressing themes like prosperity, abundance, financial blessing, golden energy. Use a 3D sculpted style with soft cinematic lighting, rich depth, elegant shading, and luxurious material texture on aged yellow parchment with weathered ancient Korean paper texture. Isolated on a clean white background. No real text, letters, numbers, or watermarks."
+                        "prompt": (
+                            "A traditional Korean yellow rectangular talisman with a red border on a red background. "
+                            "The bold red Korean text '영앤리치 인생한방' is at the top. "
+                            "Below it, the character from the reference image is wearing sunglasses and throwing money into the air "
+                            "with musical notes, money bags, and golden coins around them. "
+                            "The line art is thick, bold, and red in a woodblock print style."
+                        )
                     },
                     {
                         "name": "연애운",
-                        "prompt": "Create a vertical traditional Korean bujeok talisman artwork in a 9:16 aspect ratio. The artwork must strongly incorporate visual symbols, objects, patterns, and traditional motifs directly representing 연애운 and love, romance, heart, relationships, harmony. Use auspicious iconography and lucky cultural elements that are specifically associated with love, romance, heart, relationships, harmony, such as emblematic shapes (하트 매듭, 인연의 실, 커플 학, 원앙새), spiritual objects (사랑의 자물쇠, 붉은 실, 장미꽃잎), charms (연분홍 꽃무늬, 나비 쌍, 하트 구름), or symbolic animals (원앙, 비둘기, 사랑의 백조, 커플 나비), integrating them into the talisman composition. Surround the character with detailed brushstroke patterns (핑크빛 오라, 사랑의 소용돌이, 꽃잎 흩날림) and ritual symbols that amplify the meaning of love, romance, heart, relationships, harmony, visually expressing themes like romantic blessing, harmony, true love, emotional connection. Use a 3D sculpted style with soft cinematic lighting, rich depth, elegant shading, and luxurious material texture on aged yellow parchment with weathered ancient Korean paper texture. Isolated on a clean white background. No real text, letters, numbers, or watermarks."
+                        "prompt": (
+                            "A traditional Korean yellow rectangular talisman with a red border on a red background. "
+                            "The bold red Korean text '솔로탈출 인기폭발' is at the top. "
+                            "Below it, the character from the reference image is wearing sunglasses and making finger heart gestures "
+                            "surrounded by floating hearts, cupids, and roses. "
+                            "The line art is thick, bold, and red in a woodblock print style."
+                        )
                     },
                     {
                         "name": "건강운",
-                        "prompt": "Create a vertical traditional Korean bujeok talisman artwork in a 9:16 aspect ratio. The artwork must strongly incorporate visual symbols, objects, patterns, and traditional motifs directly representing 건강운 and health, vitality, wellness, energy, longevity. Use auspicious iconography and lucky cultural elements that are specifically associated with health, vitality, wellness, energy, longevity, such as emblematic shapes (불로초, 장수 거북, 건강 파문), spiritual objects (생명의 나무, 약초 다발, 장수 지팡이), charms (태극 에너지, 생명력 구슬, 건강 부적), or symbolic animals (학, 거북이, 사슴, 생명나무), integrating them into the talisman composition. Surround the character with detailed brushstroke patterns (푸른 생명 기운, 에너지 파동, 치유의 빛) and ritual symbols that amplify the meaning of health, vitality, wellness, energy, longevity, visually expressing themes like healing, vitality, longevity, physical strength, wellness. Use a 3D sculpted style with soft cinematic lighting, rich depth, elegant shading, and luxurious material texture on aged yellow parchment with weathered ancient Korean paper texture. Isolated on a clean white background. No real text, letters, numbers, or watermarks."
+                        "prompt": (
+                            "A traditional Korean yellow rectangular talisman with a red border on a red background. "
+                            "The bold red Korean text '무병장수 천하무적' is at the top. "
+                            "Below it, the character from the reference image is wearing sunglasses and flexing their muscles "
+                            "showing strong energy, surrounded by energy shields and ginseng roots. "
+                            "The line art is thick, bold, and red in a woodblock print style."
+                        )
                     },
                     {
                         "name": "직장운",
-                        "prompt": "Create a vertical traditional Korean bujeok talisman artwork in a 9:16 aspect ratio. The artwork must strongly incorporate visual symbols, objects, patterns, and traditional motifs directly representing 직장운 and career, success, achievement, growth, promotion. Use auspicious iconography and lucky cultural elements that are specifically associated with career, success, achievement, growth, promotion, such as emblematic shapes (승진 계단, 금관, 트로피, 성공의 문), spiritual objects (승리의 깃발, 왕관, 성공 사다리), charms (출세 매듭, 성취 별, 승리 방패), or symbolic animals (용 오름, 독수리, 호랑이, 사자), integrating them into the talisman composition. Surround the character with detailed brushstroke patterns (상승 기류, 성공의 빛, 승리의 오라) and ritual symbols that amplify the meaning of career, success, achievement, growth, promotion, visually expressing themes like professional success, recognition, leadership, advancement, achievement. Use a 3D sculpted style with soft cinematic lighting, rich depth, elegant shading, and luxurious material texture on aged yellow parchment with weathered ancient Korean paper texture. Isolated on a clean white background. No real text, letters, numbers, or watermarks."
+                        "prompt": (
+                            "A traditional Korean yellow rectangular talisman with a red border on a red background. "
+                            "The bold red Korean text '초속승진 연봉떡상' is at the top. "
+                            "Below it, the character from the reference image is wearing sunglasses and sitting on a king's throne "
+                            "wearing a crown, surrounded by upward graph arrows and trophies. "
+                            "The line art is thick, bold, and red in a woodblock print style."
+                        )
                     },
                     {
                         "name": "소망운",
-                        "prompt": "Create a vertical traditional Korean bujeok talisman artwork in a 9:16 aspect ratio. The artwork must strongly incorporate visual symbols, objects, patterns, and traditional motifs directly representing 소망운 and wishes, dreams, goals, aspirations, fulfillment. Use auspicious iconography and lucky cultural elements that are specifically associated with wishes, dreams, goals, aspirations, fulfillment, such as emblematic shapes (소원 별, 꿈의 구름, 희망 등불), spiritual objects (소원 항아리, 마법 구슬, 꿈 포수), charms (별똥별, 소원 매듭, 기도 깃발), or symbolic animals (소원 학, 천마, 신령 용, 유니콘), integrating them into the talisman composition. Surround the character with detailed brushstroke patterns (별빛 반짝임, 마법 기운, 꿈의 파동) and ritual symbols that amplify the meaning of wishes, dreams, goals, aspirations, fulfillment, visually expressing themes like wish fulfillment, dream realization, hope, manifestation, spiritual blessing. Use a 3D sculpted style with soft cinematic lighting, rich depth, elegant shading, and luxurious material texture on aged yellow parchment with weathered ancient Korean paper texture. Isolated on a clean white background. No real text, letters, numbers, or watermarks."
+                        "prompt": (
+                            "A traditional Korean yellow rectangular talisman with a red border on a red background. "
+                            "The bold red Korean text '소원성취 만사형통' is at the top. "
+                            "Below it, the character from the reference image is wearing sunglasses and holding a magical wishing lamp "
+                            "surrounded by sparkling stars and magic dust. "
+                            "The line art is thick, bold, and red in a woodblock print style."
+                        )
                     },
                     {
                         "name": "이사운",
-                        "prompt": "Create a vertical traditional Korean bujeok talisman artwork in a 9:16 aspect ratio. The artwork must strongly incorporate visual symbols, objects, patterns, and traditional motifs directly representing 이사운 and moving, new home, journey, change, fresh start. Use auspicious iconography and lucky cultural elements that are specifically associated with moving, new home, journey, change, fresh start, such as emblematic shapes (새 집, 문 열림, 길 표시, 이정표), spiritual objects (행운 열쇠, 새 문, 이사 수레, 집 모형), charms (새출발 매듭, 문열림 부적, 평안 방패), or symbolic animals (제비, 새로운 길을 여는 학, 보금자리 새), integrating them into the talisman composition. Surround the character with detailed brushstroke patterns (새로운 기운, 변화의 바람, 안정의 빛) and ritual symbols that amplify the meaning of moving, new home, journey, change, fresh start, visually expressing themes like safe journey, new beginnings, stability, peaceful transition, home blessing. Use a 3D sculpted style with soft cinematic lighting, rich depth, elegant shading, and luxurious material texture on aged yellow parchment with weathered ancient Korean paper texture. Isolated on a clean white background. No real text, letters, numbers, or watermarks."
+                        "prompt": (
+                            "A traditional Korean yellow rectangular talisman with a red border on a red background. "
+                            "The bold red Korean text '명당입성 대박기운' is at the top. "
+                            "Below it, the character from the reference image is wearing sunglasses and holding a golden key "
+                            "opening a new door, surrounded by swallows and lucky clouds. "
+                            "The line art is thick, bold, and red in a woodblock print style."
+                        )
                     }
                 ]
                 selected_themes = random.sample(themes, 1)
