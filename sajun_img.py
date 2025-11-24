@@ -89,6 +89,15 @@ DEFAULT_CHAT_SUMMARY_INSTRUCTION = """당신은 도사 말투로 사주를 요�
 - 4500자 내외로 요약 (최대 5000자)
 - 핵심 내용을 빠짐없이 전달하되 도사스러운 표현으로 재구성
 - 맨 마지막에 더 자세히 보려면 토정비결 보기 버튼을 눌러보라고 안내해"""
+DEFAULT_SCENE_SUMMARY_INSTRUCTION = """당신은 이미지 장면 설명과 운세 내용을 결합하여 한글로 간결하게 요약하는 전문가입니다.
+
+요약 규칙:
+- 정확히 5줄로 요약
+- 장면의 시각적 요소와 운세의 핵심 메시지를 자연스럽게 융합
+- 각 줄은 의미있는 핵심 포인트 하나씩
+- 한글로 자연스럽게 표현
+- 이모지 사용 금지
+- 명확하고 구체적으로"""
 
 # ----------------------------
 # 유틸
@@ -169,20 +178,11 @@ def summarize_scene_to_korean_three_lines(
     scene_text: str,
     chongun_text: str = "",
     openai_client: Optional[OpenAI] = None,
+    system_instruction: str = DEFAULT_SCENE_SUMMARY_INSTRUCTION,
 ) -> str:
     """
     영문 장면 요약과 총운 내용을 함께 활용하여 한글로 5줄 정리
     """
-    system_instruction = """당신은 이미지 장면 설명과 운세 내용을 결합하여 한글로 간결하게 요약하는 전문가입니다.
-
-요약 규칙:
-- 정확히 5줄로 요약
-- 장면의 시각적 요소와 운세의 핵심 메시지를 자연스럽게 융합
-- 각 줄은 의미있는 핵심 포인트 하나씩
-- 한글로 자연스럽게 표현
-- 이모지 사용 금지
-- 명확하고 구체적으로"""
-
     if chongun_text:
         user_msg = f"""다음 이미지 장면 설명과 총운 내용을 함께 고려하여 한글로 정확히 3줄로 요약해주세요:
 
@@ -1561,6 +1561,14 @@ chat_summary_prompt_input = st.text_area(
 )
 chat_summary_prompt = chat_summary_prompt_input if chat_summary_prompt_input.strip() else DEFAULT_CHAT_SUMMARY_INSTRUCTION
 
+scene_summary_prompt_input = st.text_area(
+    "사주 이미지 설명 프롬프트",
+    value=DEFAULT_SCENE_SUMMARY_INSTRUCTION,
+    height=150,
+    help="이미지 장면 설명과 총운 내용을 결합하여 한글 설명을 생성할 때 사용하는 시스템 프롬프트입니다.",
+)
+scene_summary_prompt = scene_summary_prompt_input if scene_summary_prompt_input.strip() else DEFAULT_SCENE_SUMMARY_INSTRUCTION
+
 st.markdown("---")
 
 # 두 개의 버튼을 나란히 배치
@@ -1585,6 +1593,7 @@ if generate:
     locked_summary_prompt = summary_prompt
     locked_bujeok_prompt = bujeok_prompt
     locked_chat_summary_prompt = chat_summary_prompt
+    locked_scene_summary_prompt = scene_summary_prompt
     locked_openai_client = openai_client
 
     # 진행 상황 로그 컨테이너
@@ -1622,7 +1631,8 @@ if generate:
             scene_summary_korean = summarize_scene_to_korean_three_lines(
                 scene_text=core_scene,
                 chongun_text=chongun_text,
-                openai_client=locked_openai_client
+                openai_client=locked_openai_client,
+                system_instruction=locked_scene_summary_prompt
             )
         except Exception as exc:
             st.warning(f"장면 요약 정리 중 오류: {exc}")
