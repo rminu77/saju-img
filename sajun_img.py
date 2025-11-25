@@ -225,10 +225,15 @@ def summarize_scene_to_korean_three_lines(
     system_instruction: str = DEFAULT_SCENE_SUMMARY_INSTRUCTION,
 ) -> str:
     """
-    영문 장면 요약과 총운 내용을 함께 활용하여 한글로 5줄 정리
+    영문 장면 요약과 총운 내용을 함께 활용하여 한글로 요약 (줄 수는 system_instruction에서 동적으로 결정)
     """
+    # system_instruction에서 줄 수 추출 (예: "정확히 5줄로 요약" -> 5)
+    import re
+    line_match = re.search(r'정확히 (\d+)줄로 요약', system_instruction)
+    line_count = int(line_match.group(1)) if line_match else 5  # 기본값 5줄
+
     if chongun_text:
-        user_msg = f"""다음 이미지 장면 설명과 총운 내용을 함께 고려하여 한글로 정확히 3줄로 요약해주세요:
+        user_msg = f"""다음 이미지 장면 설명과 총운 내용을 함께 고려하여 한글로 정확히 {line_count}줄로 요약해주세요:
 
 [이미지 장면 설명]
 {scene_text}
@@ -237,17 +242,17 @@ def summarize_scene_to_korean_three_lines(
 {chongun_text}
 
 [요구사항]
-- 한글로 5줄 요약
+- 한글로 {line_count}줄 요약
 - 각 줄은 한 문장
 - 장면의 시각적 요소와 운세의 핵심을 자연스럽게 결합
 - 독자가 이미지와 운세의 연결고리를 이해할 수 있도록"""
     else:
-        user_msg = f"""다음 이미지 장면 설명을 한글로 정확히 3줄로 요약해주세요:
+        user_msg = f"""다음 이미지 장면 설명을 한글로 정확히 {line_count}줄로 요약해주세요:
 
 {scene_text}
 
 [요구사항]
-- 한글로 5줄 요약
+- 한글로 {line_count}줄 요약
 - 각 줄은 한 문장
 - 시각적 핵심 요소만 전달
 - 자연스러운 한국어 표현"""
