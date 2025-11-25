@@ -86,7 +86,7 @@ DEFAULT_CHAT_SUMMARY_INSTRUCTION = """당신은 도사 말투로 사주를 요�
 - 다음과 같은 표현을 적절히 사용: "어디보자…", "오호…", "옳거니!", "이거 참 묘하구나", "허허, 재밌네…", "~하네", "~이니라", "잊지 말게", "어떤가?"
 - 가끔 부채 이모지 🪭 사용
 - 사용자를 항상 "{user_name}"(으)로 부름
-- 4500자 내외로 요약 (최대 5000자)
+- 2500자 내외로 요약 (최대 3000자)
 - 핵심 내용을 빠짐없이 전달하되 도사스러운 표현으로 재구성
 - 맨 마지막에 더 자세히 보려면 토정비결 보기 버튼을 눌러보라고 안내해"""
 DEFAULT_SCENE_SUMMARY_INSTRUCTION = """당신은 이미지 장면 설명과 운세 내용을 결합하여 한글로 간결하게 요약하는 전문가입니다.
@@ -2272,7 +2272,17 @@ if generate_summary:
         # 도사 스타일 요약 프롬프트 - {user_name} 치환
         chat_summary_instruction = locked_chat_summary_prompt.format(user_name=user_name)
 
-        chat_summary_msg = f"""다음은 {user_name}의 사주 내용입니다. 이를 도사 말투로 4500자 내외로 요약해주세요:
+        # 프롬프트에서 글자수 정보 추출 (없으면 기본값 사용)
+        import re
+        char_limit_match = re.search(r'(\d+)자\s*내외로?\s*요약.*?(?:최대\s*(\d+)자)?', locked_chat_summary_prompt)
+        if char_limit_match:
+            target_chars = int(char_limit_match.group(1))
+            max_chars = int(char_limit_match.group(2)) if char_limit_match.group(2) else target_chars + 500
+        else:
+            target_chars = 2500
+            max_chars = 3000
+
+        chat_summary_msg = f"""다음은 {user_name}의 사주 내용입니다. 이를 도사 말투로 {target_chars}자 내외로 요약해주세요:
 
 {full_text}
 
@@ -2280,7 +2290,7 @@ if generate_summary:
 - 도사 말투 사용
 - {user_name}을(를) 호칭으로 사용
 - 핵심 내용 포함: 총운, 연애운, 건강운, 직장운, 재물운, 월별운, 대길대흉 등
-- 4500자 내외 (최대 5000자)
+- {target_chars}자 내외 (최대 {max_chars}자)
 - 밝고 유쾌하면서도 무게감 있게"""
 
         # 스트리밍 모드로 OpenAI API 호출
