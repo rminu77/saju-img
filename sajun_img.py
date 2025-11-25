@@ -1200,16 +1200,21 @@ if not openai_available:
     st.error("OPENAI_API_KEY가 설정되지 않았거나 openai 패키지가 없습니다.")
     st.stop()
 
-if "core_scene_summary" not in st.session_state:
-    st.session_state.core_scene_summary = ""
-if "chat_summary" not in st.session_state:
-    st.session_state.chat_summary = ""
-if "generated_html" not in st.session_state:
-    st.session_state.generated_html = None
-if "generated_image" not in st.session_state:
-    st.session_state.generated_image = None
-if "html_filename" not in st.session_state:
-    st.session_state.html_filename = None
+# 세션 상태 초기화 (안전하게 처리)
+try:
+    if "core_scene_summary" not in st.session_state:
+        st.session_state.core_scene_summary = ""
+    if "chat_summary" not in st.session_state:
+        st.session_state.chat_summary = ""
+    if "generated_html" not in st.session_state:
+        st.session_state.generated_html = None
+    if "generated_image" not in st.session_state:
+        st.session_state.generated_image = None
+    if "html_filename" not in st.session_state:
+        st.session_state.html_filename = None
+except Exception as e:
+    st.error(f"세션 상태 초기화 중 오류가 발생했습니다: {e}")
+    st.stop()
 
 # CSV 파일 업로드로 샘플 데이터 입력 (위젯 생성 전에 처리)
 st.markdown("**📤 샘플 데이터 업로드**")
