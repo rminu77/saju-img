@@ -499,7 +499,8 @@ def generate_bujeok_images(base_prompt: str, char_images: list, openai_client: O
 
 def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
                   birth_time: str, sections: dict, image_base64: str,
-                  chongun_summary: str = "", bujeok_images: list = None) -> str:
+                  chongun_summary: str = "", bujeok_images: list = None,
+                  timing_info: dict = None) -> str:
     """
     19개 섹션 내용을 받아서 HTML을 생성
     image_base64: base64로 인코딩된 이미지 데이터
@@ -513,6 +514,8 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
     
     if bujeok_images is None:
         bujeok_images = []
+    if timing_info is None:
+        timing_info = {}
     html = f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -1097,6 +1100,53 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
     html += """        </div>
     </main>
 
+    <!-- 단계별 소요시간 정보 -->
+    <div class="mt-12 p-6 bg-gray-50 rounded-lg border border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+            <span class="mr-2">⏱️</span>
+            생성 단계별 소요시간
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+"""
+
+    # 단계별 시간 정보를 HTML에 추가
+    timing_items = [
+        ("텍스트 분석 및 섹션 매핑", timing_info.get("text_analysis", 0)),
+        ("총운 5줄 요약 생성", timing_info.get("chongun_summary", 0)),
+        ("장면 5줄 요약 생성", timing_info.get("scene_summary", 0)),
+        ("사주 이미지 생성", timing_info.get("saju_image", 0)),
+        ("부적 이미지 생성", timing_info.get("bujeok_image", 0)),
+        ("HTML 생성", timing_info.get("html_generation", 0)),
+    ]
+
+    total_time = sum(time for _, time in timing_items)
+
+    for step_name, step_time in timing_items:
+        if step_time > 0:
+            percentage = (step_time / total_time * 100) if total_time > 0 else 0
+            html += f"""            <div class="flex justify-between items-center p-3 bg-white rounded border">
+                <span class="text-sm font-medium text-gray-700">{step_name}</span>
+                <div class="flex items-center space-x-2">
+                    <div class="w-16 bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-500 h-2 rounded-full" style="width: {percentage:.1f}%"></div>
+                    </div>
+                    <span class="text-sm text-gray-600 min-w-[60px]">{step_time:.1f}초</span>
+                </div>
+            </div>
+"""
+
+    html += f"""            <div class="col-span-full mt-4 pt-4 border-t border-gray-300">
+                <div class="flex justify-between items-center p-3 bg-blue-50 rounded border border-blue-200">
+                    <span class="text-sm font-semibold text-blue-800">전체 소요시간</span>
+                    <span class="text-sm font-semibold text-blue-800">{total_time:.1f}초</span>
+                </div>
+            </div>
+        </div>
+        <div class="mt-4 text-xs text-gray-500 text-center">
+            생성 시각: {timing_info.get("generated_at", "알 수 없음")}
+        </div>
+    </div>
+
     <script>
         // 앵커 링크 클릭 시 스크롤만 처리 (페이지 리로드 방지)
         document.addEventListener('DOMContentLoaded', function() {
@@ -1672,6 +1722,11 @@ if generate:
     # 시작 시간 기록
     start_time = time.time()
 
+    # 단계별 소요시간 기록용 딕셔너리
+    timing_info = {
+        "generated_at": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    }
+
     # "올해의총운" 텍스트로 이미지 생성
     base_text = sections.get("올해의총운(새해신수)", "").strip()
     if not base_text:
@@ -1697,6 +1752,7 @@ if generate:
     progress_log = st.empty()
     
     progress_log.info("🔄 1/6 단계: 핵심 장면 추출 중...")
+    text_analysis_start = time.time()
     with st.spinner("🔍 핵심 장면 추출 중 (gpt-4.1-mini 사용)..."):
         try:
             core_scene = summarize_for_visuals(
@@ -1712,16 +1768,20 @@ if generate:
             st.error(f"핵심 장면 요약 생성 중 오류가 발생했습니다: {exc}")
             st.stop()
 
+    text_analysis_end = time.time()
+    timing_info["text_analysis"] = text_analysis_end - text_analysis_start
+
     core_scene = (core_scene or "").strip()
     st.session_state["core_scene_summary"] = core_scene
     if core_scene:
         st.markdown("#### ✨ 핵심 장면 요약")
         st.write(core_scene)
-    
+
     progress_log.success("✅ 1/6 단계 완료: 핵심 장면 추출")
 
     # 장면 요약과 총운 내용을 함께 한글 3줄로 정리
     progress_log.info("🔄 2/6 단계: 장면 요약 + 총운 한글 3줄 정리 중...")
+    scene_summary_start = time.time()
     with st.spinner("📋 장면 요약 정리 중 (gpt-4.1-mini 사용)..."):
         try:
             chongun_text = sections.get("핵심포인트(새해신수)", "").strip() + "\n\n" + sections.get("올해의총운(새해신수)", "").strip()
@@ -1734,7 +1794,10 @@ if generate:
         except Exception as exc:
             st.warning(f"장면 요약 정리 중 오류: {exc}")
             scene_summary_korean = ""
-    
+
+    scene_summary_end = time.time()
+    timing_info["scene_summary"] = scene_summary_end - scene_summary_start
+
     progress_log.success("✅ 2/6 단계 완료: 장면 요약 + 총운 한글 3줄 정리")
 
     progress_log.info("🔄 3/6 단계: 이미지 프롬프트 작성 중...")
@@ -1857,14 +1920,17 @@ if generate:
     import sys
     progress_log.info("🔄 4-5/6 단계: 사주 이미지와 부적 이미지를 동시에 생성 중...")
     print("[병렬생성] 사주 + 부적 이미지 동시 생성 시작", file=sys.stderr)
-    
+
     saju_img = None
     saju_error = None
     bujeok_results_raw = []
     valid_chars = []
     bujeok_status = None
     bujeok_error = None
-    
+
+    # 이미지 생성 시작 시간 기록
+    image_generation_start = time.time()
+
     with st.spinner("🎨 사주 이미지와 부적 이미지를 동시에 생성 중입니다..."):
         with ThreadPoolExecutor(max_workers=2) as executor:
             print("[병렬생성] ThreadPoolExecutor 시작 (워커 2개)", file=sys.stderr)
@@ -1957,6 +2023,13 @@ if generate:
         print("[병렬생성] 사주 생성 실패", file=sys.stderr)
         st.stop()
     
+    # 이미지 생성 완료 시간 기록
+    image_generation_end = time.time()
+    total_image_time = image_generation_end - image_generation_start
+    # 사주 이미지와 부적 이미지 시간을 대략적으로 분배 (실제로는 각각 측정하기 어려움)
+    timing_info["saju_image"] = total_image_time * 0.6  # 사주 이미지 시간
+    timing_info["bujeok_image"] = total_image_time * 0.4  # 부적 이미지 시간
+
     print("[병렬생성] 병렬 생성 단계 완전 종료", file=sys.stderr)
 
     # 사주 이미지 처리
@@ -2061,10 +2134,12 @@ if generate:
     import sys
     progress_log.info("🔄 6/6 단계: HTML 생성 중...")
     print("[UI] 6단계 시작: HTML 생성", file=sys.stderr)
-    
+
+    html_generation_start = time.time()
+
     html_content = None
     html_filename = None
-    
+
     with st.spinner("📄 HTML 생성 중..."):
         try:
             print("[UI] 섹션 키 매핑 시작", file=sys.stderr)
@@ -2088,7 +2163,8 @@ if generate:
                 sections=mapped_sections,
                 image_base64=img_base64,
                 chongun_summary=scene_summary_korean,
-                bujeok_images=bujeok_results
+                bujeok_images=bujeok_results,
+                timing_info=timing_info
             )
             
             print(f"[UI] HTML 생성 완료: {len(html_content)} 문자", file=sys.stderr)
@@ -2111,7 +2187,10 @@ if generate:
             print(f"[UI] HTML 생성 예외: {error_msg}", file=sys.stderr)
             st.error(error_msg)
             st.stop()
-    
+
+    html_generation_end = time.time()
+    timing_info["html_generation"] = html_generation_end - html_generation_start
+
     print("[UI] 스피너 종료, 세션 상태 저장 시작", file=sys.stderr)
     
     # 세션 상태에 결과 저장
@@ -2149,12 +2228,17 @@ if generate_summary:
     locked_chat_summary_prompt = chat_summary_prompt
     locked_openai_client = openai_client
 
-    with st.spinner("💬 채팅방 요약 생성 중 (gpt-4.1-mini 사용)..."):
-        try:
-            # 도사 스타일 요약 프롬프트 - {user_name} 치환
-            chat_summary_instruction = locked_chat_summary_prompt.format(user_name=user_name)
+    # 스트리밍 표시를 위한 placeholder 생성
+    chat_summary_placeholder = st.empty()
+    with chat_summary_placeholder.container():
+        st.markdown("#### 💬 채팅방 요약 (스트리밍 생성 중...)")
+        streaming_text = st.empty()
 
-            chat_summary_msg = f"""다음은 {user_name}의 사주 내용입니다. 이를 도사 말투로 4500자 내외로 요약해주세요:
+    try:
+        # 도사 스타일 요약 프롬프트 - {user_name} 치환
+        chat_summary_instruction = locked_chat_summary_prompt.format(user_name=user_name)
+
+        chat_summary_msg = f"""다음은 {user_name}의 사주 내용입니다. 이를 도사 말투로 4500자 내외로 요약해주세요:
 
 {full_text}
 
@@ -2165,21 +2249,32 @@ if generate_summary:
 - 4500자 내외 (최대 5000자)
 - 밝고 유쾌하면서도 무게감 있게"""
 
-            chat_summary = locked_openai_client.chat.completions.create(
-                model="gpt-4.1-mini",
-                messages=[
-                    {"role": "system", "content": chat_summary_instruction},
-                    {"role": "user", "content": chat_summary_msg},
-                ]
-            )
-            chat_summary_text = (chat_summary.choices[0].message.content or "").strip()
+        # 스트리밍 모드로 OpenAI API 호출
+        chat_summary_stream = locked_openai_client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {"role": "system", "content": chat_summary_instruction},
+                {"role": "user", "content": chat_summary_msg},
+            ],
+            stream=True
+        )
 
-            # 세션 상태에 채팅방 요약 저장
-            st.session_state["chat_summary"] = chat_summary_text
+        chat_summary_text = ""
+        for chunk in chat_summary_stream:
+            if chunk.choices[0].delta.content is not None:
+                chat_summary_text += chunk.choices[0].delta.content
+                # 실시간으로 텍스트 업데이트
+                streaming_text.markdown(f"```\n{chat_summary_text}\n```")
 
-            # 요약 표시
-            st.markdown("#### 💬 채팅방 요약")
-            if chat_summary_text:
+        chat_summary_text = chat_summary_text.strip()
+
+        # 세션 상태에 채팅방 요약 저장
+        st.session_state["chat_summary"] = chat_summary_text
+
+        # 스트리밍 완료 후 최종 결과 표시
+        chat_summary_placeholder.empty()
+        st.markdown("#### 💬 채팅방 요약")
+        if chat_summary_text:
                 # 말풍선 UI 스타일로 표시
                 st.markdown(f"""
                 <div style="display: flex; align-items: flex-start; margin: 20px 0;">
