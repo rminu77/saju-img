@@ -1836,6 +1836,7 @@ if generate:
 
     # 사주 이미지 생성 함수
     def generate_saju_image():
+        saju_start_time = time.time()
         try:
             imgs = generate_images(
                 final_prompt,
@@ -1845,13 +1846,18 @@ if generate:
                 openai_client=locked_openai_client,
             )
             valid = [i for i in imgs if i is not None]
-            return {"success": True, "image": valid[0] if valid else None, "error": None}
+            saju_end_time = time.time()
+            saju_elapsed = saju_end_time - saju_start_time
+            return {"success": True, "image": valid[0] if valid else None, "error": None, "elapsed_time": saju_elapsed}
         except Exception as e:
-            return {"success": False, "image": None, "error": str(e)}
+            saju_end_time = time.time()
+            saju_elapsed = saju_end_time - saju_start_time
+            return {"success": False, "image": None, "error": str(e), "elapsed_time": saju_elapsed}
 
     # 부적 이미지 생성 함수 (OpenAI 단독 생성)
     def generate_bujeok_images_wrapper():
         import sys
+        bujeok_start_time = time.time()
         try:
             print("[부적Wrapper] 부적 생성 시작", file=sys.stderr)
             import random
@@ -1900,6 +1906,9 @@ if generate:
                 else:
                     print(f"[부적Wrapper] 부적 이미지가 None입니다", file=sys.stderr)
                 
+                bujeok_end_time = time.time()
+                bujeok_elapsed = bujeok_end_time - bujeok_start_time
+                
                 if enhanced_results:
                     print(f"[부적Wrapper] 최종 결과: 성공 ({len(enhanced_results)}개)", file=sys.stderr)
                     return {
@@ -1908,19 +1917,24 @@ if generate:
                         "valid_chars": selected_chars,
                         "char_count": len(valid_chars),
                         "error": None,
-                        "logs": []
+                        "logs": [],
+                        "elapsed_time": bujeok_elapsed
                     }
                 
                 print(f"[부적Wrapper] 최종 결과: 실패 (enhanced_results가 비어있음)", file=sys.stderr)
-                return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": "OpenAI 이미지 생성 실패", "logs": []}
+                return {"success": False, "results": [], "valid_chars": [], "char_count": len(valid_chars), "error": "OpenAI 이미지 생성 실패", "logs": [], "elapsed_time": bujeok_elapsed}
             
+            bujeok_end_time = time.time()
+            bujeok_elapsed = bujeok_end_time - bujeok_start_time
             print(f"[부적Wrapper] valid_chars 또는 openai_client가 없음", file=sys.stderr)
-            return {"success": False, "results": [], "valid_chars": [], "char_count": 0, "error": "캐릭터 이미지 또는 OpenAI 클라이언트 없음", "logs": []}
+            return {"success": False, "results": [], "valid_chars": [], "char_count": 0, "error": "캐릭터 이미지 또는 OpenAI 클라이언트 없음", "logs": [], "elapsed_time": bujeok_elapsed}
         except Exception as e:
             import traceback
+            bujeok_end_time = time.time()
+            bujeok_elapsed = bujeok_end_time - bujeok_start_time
             error_msg = f"{str(e)}\n{traceback.format_exc()}"
             print(f"[부적Wrapper] 예외 발생: {error_msg}", file=sys.stderr)
-            return {"success": False, "results": [], "valid_chars": [], "char_count": 0, "error": error_msg, "logs": []}
+            return {"success": False, "results": [], "valid_chars": [], "char_count": 0, "error": error_msg, "logs": [], "elapsed_time": bujeok_elapsed}
 
     # 사주 이미지와 부적 이미지를 순차적으로 생성 (안정성 확보 및 디버깅 용이)
     # 병렬 처리 시 원인 불명의 중단 현상이 발생하여 순차 처리로 변경함
@@ -1969,10 +1983,14 @@ if generate:
                             print(f"[병렬생성] 사주 결과 획득: success={saju_result.get('success')}", file=sys.stderr)
                             if saju_result["success"]:
                                 saju_img = saju_result["image"]
-                                print("[병렬생성] 사주 이미지 저장 완료", file=sys.stderr)
+                                saju_elapsed = saju_result.get("elapsed_time", 0)
+                                timing_info["saju_image"] = saju_elapsed
+                                print(f"[병렬생성] 사주 이미지 저장 완료 (소요시간: {saju_elapsed:.1f}초)", file=sys.stderr)
                             else:
                                 saju_error = f"사주 이미지 생성 실패: {saju_result.get('error', '알 수 없는 오류')}"
-                                print(f"[병렬생성] {saju_error}", file=sys.stderr)
+                                saju_elapsed = saju_result.get("elapsed_time", 0)
+                                timing_info["saju_image"] = saju_elapsed
+                                print(f"[병렬생성] {saju_error} (소요시간: {saju_elapsed:.1f}초)", file=sys.stderr)
                         
                         elif task_name == "부적":
                             bujeok_result = future.result(timeout=180)  # 부적 이미지 최대 3분
@@ -1981,10 +1999,14 @@ if generate:
                                 bujeok_results_raw = bujeok_result["results"]
                                 valid_chars = bujeok_result["valid_chars"]
                                 bujeok_status = f"✅ 부적 이미지 {len(bujeok_result['results'])}개 생성 완료"
-                                print(f"[병렬생성] 부적 결과 저장 완료: {len(bujeok_results_raw)}개", file=sys.stderr)
+                                bujeok_elapsed = bujeok_result.get("elapsed_time", 0)
+                                timing_info["bujeok_image"] = bujeok_elapsed
+                                print(f"[병렬생성] 부적 결과 저장 완료: {len(bujeok_results_raw)}개 (소요시간: {bujeok_elapsed:.1f}초)", file=sys.stderr)
                             else:
                                 bujeok_error = f"부적 이미지 생성 실패: {bujeok_result.get('error', '알 수 없는 오류')}"
-                                print(f"[병렬생성] {bujeok_error}", file=sys.stderr)
+                                bujeok_elapsed = bujeok_result.get("elapsed_time", 0)
+                                timing_info["bujeok_image"] = bujeok_elapsed
+                                print(f"[병렬생성] {bujeok_error} (소요시간: {bujeok_elapsed:.1f}초)", file=sys.stderr)
                     
                     except TimeoutError as e:
                         timeout_msg = f"{task_name} 작업 타임아웃 (3분 초과): {e}"
@@ -2032,14 +2054,17 @@ if generate:
         print("[병렬생성] 사주 생성 실패", file=sys.stderr)
         st.stop()
     
-    # 이미지 생성 완료 시간 기록
+    # 이미지 생성 완료 시간 기록 (각 작업의 시간은 이미 timing_info에 저장됨)
     image_generation_end = time.time()
     total_image_time = image_generation_end - image_generation_start
-    # 사주 이미지와 부적 이미지 시간을 대략적으로 분배 (실제로는 각각 측정하기 어려움)
-    timing_info["saju_image"] = total_image_time * 0.6  # 사주 이미지 시간
-    timing_info["bujeok_image"] = total_image_time * 0.4  # 부적 이미지 시간
+    
+    # 각 작업의 시간이 측정되지 않은 경우에만 대략적으로 분배
+    if "saju_image" not in timing_info or timing_info["saju_image"] == 0:
+        timing_info["saju_image"] = total_image_time * 0.6  # 사주 이미지 시간
+    if "bujeok_image" not in timing_info or timing_info["bujeok_image"] == 0:
+        timing_info["bujeok_image"] = total_image_time * 0.4  # 부적 이미지 시간
 
-    print("[병렬생성] 병렬 생성 단계 완전 종료", file=sys.stderr)
+    print(f"[병렬생성] 병렬 생성 단계 완전 종료 (전체: {total_image_time:.1f}초, 사주: {timing_info.get('saju_image', 0):.1f}초, 부적: {timing_info.get('bujeok_image', 0):.1f}초)", file=sys.stderr)
 
     # 사주 이미지 처리
     import sys
