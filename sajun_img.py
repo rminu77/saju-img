@@ -1146,20 +1146,22 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
             생성 시각: {timing_info.get("generated_at", "알 수 없음")}
         </div>
     </div>
+"""
 
-    <script>
-        // 앵커 링크 클릭 시 스크롤만 처리 (페이지 리로드 방지)
+    # JavaScript 부분을 별도로 추가 (f-string 문제 회피)
+    html += """    <script>
+        /* 앵커 링크 클릭 시 스크롤만 처리 (페이지 리로드 방지) */
         document.addEventListener('DOMContentLoaded', function() {
-            // 모든 앵커 링크에 이벤트 리스너 추가
+            /* 모든 앵커 링크에 이벤트 리스너 추가 */
             document.querySelectorAll('a[href^="#"]').forEach(anchor => {
                 anchor.addEventListener('click', function(e) {
-                    e.preventDefault(); // 기본 동작 방지
+                    e.preventDefault(); /* 기본 동작 방지 */
 
                     const targetId = this.getAttribute('href').substring(1);
                     const targetElement = document.getElementById(targetId);
 
                     if (targetElement) {
-                        // 부드러운 스크롤
+                        /* 부드러운 스크롤 */
                         targetElement.scrollIntoView({
                             behavior: 'smooth',
                             block: 'start'
@@ -1173,6 +1175,8 @@ def generate_html(user_name: str, gender: str, solar_date: str, lunar_date: str,
 </body>
 </html>
 """
+
+    return html
     return html
 
 # ----------------------------
@@ -2275,37 +2279,37 @@ if generate_summary:
         chat_summary_placeholder.empty()
         st.markdown("#### 💬 채팅방 요약")
         if chat_summary_text:
-                # 말풍선 UI 스타일로 표시
-                st.markdown(f"""
-                <div style="display: flex; align-items: flex-start; margin: 20px 0;">
-                    <div style="flex-shrink: 0; margin-right: 12px;">
-                        <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; font-size: 24px;">
-                            🪭
-                        </div>
+            # 말풍선 UI 스타일로 표시
+            st.markdown(f"""
+            <div style="display: flex; align-items: flex-start; margin: 20px 0;">
+                <div style="flex-shrink: 0; margin-right: 12px;">
+                    <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                        🪭
                     </div>
-                    <div style="flex-grow: 1; max-width: 85%;">
-                        <div style="background-color: #f8f9fa; border-radius: 18px; padding: 16px 20px; position: relative; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-                            <div style="font-weight: 600; color: #667eea; margin-bottom: 8px; font-size: 14px;">도사</div>
-                            <div style="white-space: pre-wrap; line-height: 1.7; color: #2c3e50; font-size: 15px; max-height: 600px; overflow-y: auto;">
+                </div>
+                <div style="flex-grow: 1; max-width: 85%;">
+                    <div style="background-color: #f8f9fa; border-radius: 18px; padding: 16px 20px; position: relative; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                        <div style="font-weight: 600; color: #667eea; margin-bottom: 8px; font-size: 14px;">도사</div>
+                        <div style="white-space: pre-wrap; line-height: 1.7; color: #2c3e50; font-size: 15px; max-height: 600px; overflow-y: auto;">
 {chat_summary_text}
-                            </div>
-                            <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #e0e0e0; font-size: 11px; color: #999;">
-                                📏 {len(chat_summary_text)}자
-                            </div>
+                        </div>
+                        <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #e0e0e0; font-size: 11px; color: #999;">
+                            📏 {len(chat_summary_text)}자
                         </div>
                     </div>
                 </div>
-                """, unsafe_allow_html=True)
+            </div>
+            """, unsafe_allow_html=True)
 
-                # 종료 시간 계산
-                summary_end_time = time.time()
-                summary_elapsed_time = summary_end_time - summary_start_time
+            # 종료 시간 계산
+            summary_end_time = time.time()
+            summary_elapsed_time = summary_end_time - summary_start_time
 
-                st.success(f"✅ 채팅방 요약 생성 완료! (소요 시간: {summary_elapsed_time:.1f}초)")
-            else:
-                st.warning("채팅방 요약 생성에 실패했습니다.")
-        except Exception as exc:
-            st.error(f"채팅방 요약 생성 중 오류가 발생했습니다: {exc}")
+            st.success(f"✅ 채팅방 요약 생성 완료! (소요 시간: {summary_elapsed_time:.1f}초)")
+        else:
+            st.warning("채팅방 요약 생성에 실패했습니다.")
+    except Exception as exc:
+        st.error(f"채팅방 요약 생성 중 오류가 발생했습니다: {exc}")
 
 # 결과물 표시 (세션 상태에서 가져옴)
 if st.session_state.generated_html is not None:
