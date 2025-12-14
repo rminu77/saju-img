@@ -47,27 +47,43 @@ OPENAI_IMAGE_SIZE = "1024x1024"
 RESULT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "result")
 DEFAULT_SYSTEM_INSTRUCTION = (
     "A mystical, hopeful scene rooted in Korean culture. "
-    "Draw the characters in a way that highlights their personality, similar to Disney's Tangled and Encanto. "
-    "The overall scene should be bright, rich in color, and vibrant, must have no wrinkles, with a lovely emphasis on the characters. "
-    "Express the faces in a Ghibli style. The lighting should be soft but powerful, and the characters should embody both warmth and vitality. "
-    "The atmosphere should be both fantastical and dramatic."
+    "A prominent, large-scale close-up shot of a single instant Polaroid "
+    "photograph held minimally by fingertips barely visible at the very "
+    "bottom edge against a breathtaking seaside view. The Polaroid dominates "
+    "the frame. The New Year's sun is just cresting the ocean horizon. The "
+    "sky is bright and clear blues, casting brilliant morning light across "
+    "the landscape. The photo displays a tiny, detailed diorama of the single "
+    "person described in Scene Description, reimagined as a 3D chibi "
+    "character. The classic white border of the Polaroid is completely blank, "
+    "with no text or handwriting. Ethereal, clear morning glow illuminating "
+    "the photo print, cinematic reflections on the glossy photo surface, cozy "
+    "high-end aesthetic. Cinematic lighting, extremely shallow depth of field "
+    "focusing sharply on the photo, ultra-polished photo paper texture, high "
+    "detail, hopeful and whimsical New Year atmosphere. none text. Draw based "
+    "on the following Scene Description, clearly specifying the gender."
 )
 DEFAULT_SUMMARY_INSTRUCTION = (
-    "You are a Korean-to-English creative synthesis assistant with a warm, hopeful tone. "
-    "Read the provided Korean saju text and create a vivid, single-scene description that can be rendered as one beautiful painting. "
-    "Your description MUST include: "
-    "1. WHO: A specific human figure (describe gender, youthful for their age, beautiful, and elegant appearance, attire, posture) "
-    "2. WHERE: A background that depicts the saju's contents "
-    "3. WHAT: A specific action or gesture the person is performing in that moment "
-    "The background must always be in Korea and include Korean cultural elements. Women wear a skirt hanbok, men wear pants hanbok.) "
-    "ALWAYS center the description around the human figure - describe what the person looks like, what they are doing, and where they are. "
-    "Portray the human figure as youthful for their age, beautiful, dignified, and elegant. "
-    "Focus on positive, uplifting, and hopeful visual metaphors that inspire optimism and growth. "
-    "Even when addressing challenges, frame them as opportunities for transformation and renewal. "
-    "Emphasize bright colors, ascending movements, blooming elements, and harmonious compositions. "
-    "Focus on concrete visual motifs and atmospheric cues that evoke hope and possibility. "
-    "Create a description that an artist can immediately visualize and paint as a single, cohesive scene. "
-    "Output the description in English as 1-2 sentences."
+    "Read the provided Korean Saju text and create a vivid, single-scene "
+    "description centered on the human figure that an image generation model "
+    "can render as a beautiful painting.\n\n"
+    "Your description MUST include the following:\n\n"
+    "1. WHO (Core Subject): A specific human figure (gender must be clearly "
+    "specified, depicted as a young adult in the prime of their life "
+    "(approx. 20s) regardless of the age in the text, beautiful and elegant "
+    "features, detailed attire, posture).\n\n"
+    "2. WHAT (Core Action): A specific action or gesture the person is "
+    "performing in that moment.\n\n"
+    "3. WHERE (Background): A background that depicts the Saju's contents.\n\n"
+    "The background must always be in Korea and include Korean cultural "
+    "elements. (Women wear a skirt Hanbok, men wear pants Hanbok.)\n\n"
+    "[MOST IMPORTANT INSTRUCTIONS]\n\n"
+    "The absolute center of the description must always be the human figure.\n\n"
+    "Irrespective of the age mentioned in the Saju text, the figure must "
+    "strictly be described as young.\n\n"
+    "Focus on positive, uplifting, and hopeful visual metaphors that inspire "
+    "optimism and growth.\n\n"
+    "Create the description without any sensitive content, such as pregnancy.\n\n"
+    "Output the result in 1 English sentence."
 )
 DEFAULT_BUJEOK_INSTRUCTION = (
     "Create a vertical traditional Korean bujeok talisman artwork in a 9:16 aspect ratio. "
@@ -86,9 +102,9 @@ DEFAULT_CHAT_SUMMARY_INSTRUCTION = """당신은 도사 말투로 사주를 요�
 - 다음과 같은 표현을 적절히 사용: "어디보자…", "오호…", "옳거니!", "이거 참 묘하구나", "허허, 재밌네…", "~하네", "~이니라", "잊지 말게", "어떤가?"
 - 가끔 부채 이모지 🪭 사용
 - 사용자를 항상 "{user_name}"(으)로 부름
-- 2500자 내외로 요약 (최대 3000자)
+- 1500자 내외로 요약
 - 핵심 내용을 빠짐없이 전달하되 도사스러운 표현으로 재구성
-- 맨 마지막에 더 자세히 보려면 토정비결 보기 버튼을 눌러보라고 안내해"""
+- 맨 마지막에 더 자세히 보려면 신년운세 보기 버튼을 눌러보라고 안내해"""
 DEFAULT_SCENE_SUMMARY_INSTRUCTION = """당신은 이미지 장면 설명과 운세 내용을 결합하여 한글로 간결하게 요약하는 전문가입니다.
 
 요약 규칙:
@@ -97,7 +113,7 @@ DEFAULT_SCENE_SUMMARY_INSTRUCTION = """당신은 이미지 장면 설명과 운�
 - 각 줄은 의미있는 핵심 포인트 하나씩
 - 한글로 자연스럽게 표현
 - 이모지 사용 금지
-- 명확하고 구체적으로"""
+- 명확하고 구체적으로 도사말투로"""
 
 # 부적 이미지 생성 프롬프트 (6개 테마별)
 DEFAULT_BUJEOK_JEMUL = (
